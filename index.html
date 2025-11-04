@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi Lista de Gastos</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>💸 Gastos Metálico</h1>
+
+    <form id="gastoForm">
+        <input type="text" id="concepto" placeholder="Concepto" required>
+        <input type="number" id="importe" placeholder="Importe (€)" required step="0.01">
+        
+        <input type="date" id="fecha" required>
+ 
+        <div class="botones">
+            <button type="submit">Agregar</button>
+            <button type="button" id="exportarCSV">Exportar CSV</button>
+        </div>
+    </form>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th> 
+          <th>Concepto</th> 
+          <th>Euros</th> 
+          <th></th> 
+        </tr>
+      </thead>
+      <tbody id="listaGastos"></tbody>
+    </table>
+
+    <p class="total">Total: <span id="total">0.00</span> €</p>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

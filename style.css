@@ -1,0 +1,136 @@
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f3f4f6;
+  display: flex;
+  justify-content: center;
+  /* Reducir el padding horizontal en el body puede ayudar en pantallas pequeñas */
+  padding: 40px 10px; 
+}
+
+.container {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  width: 100%;
+  /* CAMBIO CLAVE: Quitamos la limitación para que use todo el ancho en móviles */
+  max-width: 9999px; 
+}
+
+h1 {
+  text-align: center;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+/* Estilos comunes para input y select */
+input, select {
+  padding: 12px;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  width: 100%;
+  box-sizing: border-box;
+  background-color: white; /* Asegura el fondo blanco para ambos */
+}
+
+/* Forzar el fondo de la casilla de fecha a blanco para móviles */
+input[type="date"] {
+    background-color: white; 
+}
+
+/* Contenedor de botones */
+.botones {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+button {
+  padding: 10px 16px;
+  font-size: 1em;
+  cursor: pointer;
+  border: none;
+  border-radius: 5px;
+  color: white;
+}
+
+/* 🔵 Botón Agregar */
+button[type="submit"] {
+  background-color: #2563eb;
+}
+
+button[type="submit"]:hover {
+  background-color: #1d4ed8;
+}
+
+/* 🟢 Botón Exportar */
+#exportarCSV {
+  background-color: #16a34a;
+}
+
+#exportarCSV:hover {
+  background-color: #15803d;
+}
+
+/* La tabla ocupará el 100% del ancho de su contenedor */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  /* Asegura que la tabla respete el ancho y no desborde */
+  table-layout: fixed; 
+}
+
+/* Estilos de la tabla */
+th, td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+  box-sizing: border-box; 
+  word-break: break-word;
+}
+
+th {
+  background-color: #f2f2f2;
+}
+
+/* CAMBIO: OPTIMIZACIÓN DE ANCHOS DE COLUMNA EN MÓVIL (Cuatro columnas de datos: Fecha, Concepto, Importe, Acciones) */
+th:nth-child(1), td:nth-child(1) { /* Fecha (1ª Columna) */
+    width: 20%; 
+}
+th:nth-child(2), td:nth-child(2) { /* Concepto (2ª Columna) */
+    width: 40%; /* Aumentado */
+}
+th:nth-child(3), td:nth-child(3) { /* Importe (3ª Columna) */
+    width: 25%; /* Aumentado */
+}
+th:nth-child(4), td:nth-child(4) { /* Acciones (4ª Columna) */
+    width: 15%;
+    text-align: center;
+}
+td:nth-child(4) button { /* Botón de la papelera */
+    padding: 5px 8px; /* Botón de la papelera más pequeño */
+}
+
+
+/* REGLAS para el total */
+.total {
+  /* Alinea el texto a la derecha */
+  text-align: right; 
+  /* Asegura que el párrafo tenga un margen superior para separarlo de la tabla */
+  margin-top: 15px; 
+  font-weight: bold; /* Pone el texto en negrita */
+  font-size: 1.2em; /* Aumenta ligeramente la fuente */
+}
+
+/* Estilo adicional para el valor numérico */
+#total {
+  font-size: 1.4em; /* Hace el número aún más grande */
+  color: #c52020; /* Color para destacar el total */
+}
