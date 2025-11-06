@@ -1,45 +1,137 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mi Lista de Gastos</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Metálico</title>
+
+  <!-- Tailwind CSS desde CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <div class="container">
-    <h1>💸 Metálico</h1>
+<body class="bg-gray-50 m-0 p-0">
+  <div id="app"></div>
 
-    <form id="gastoForm">
-        <input type="text" id="concepto" placeholder="Concepto" required>
-        <input type="number" id="importe" placeholder="Importe (€)" required step="0.01">
-        
-        <input type="date" id="fecha" required>
- 
-        <div class="botones">
-            <button type="submit">Agregar</button>
-            <button type="button" id="exportarCSV">Exportar CSV</button>
+  <!-- React y ReactDOM desde CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Tu aplicación React -->
+  <script type="text/babel">
+
+    function Metalico() {
+      const [concepto, setConcepto] = React.useState("");
+      const [importe, setImporte] = React.useState("");
+      const [gastos, setGastos] = React.useState([]);
+
+      // Cargar datos guardados
+      React.useEffect(() => {
+        const datosGuardados = localStorage.getItem("gastosMetalico");
+        if (datosGuardados) setGastos(JSON.parse(datosGuardados));
+      }, []);
+
+      // Guardar datos
+      React.useEffect(() => {
+        localStorage.setItem("gastosMetalico", JSON.stringify(gastos));
+      }, [gastos]);
+
+      const handleAddGasto = () => {
+        if (!concepto.trim() || !importe) return;
+        const nuevoGasto = {
+          fecha: new Date().toLocaleDateString(),
+          concepto: concepto.trim(),
+          importe: parseFloat(importe).toFixed(2),
+        };
+        setGastos([nuevoGasto, ...gastos]);
+        setConcepto("");
+        setImporte("");
+      };
+
+      const handleDeleteGasto = (index) => {
+        setGastos(gastos.filter((_, i) => i !== index));
+      };
+
+      return (
+        <div className="w-screen min-h-screen bg-gray-50 flex flex-col text-sm">
+          {/* Título */}
+          <h1 className="text-center text-2xl font-bold bg-blue-600 text-white py-3">
+            Metálico
+          </h1>
+
+          {/* Frame superior */}
+          <div className="flex flex-col p-2 gap-2 bg-white border-b border-gray-200">
+            <input
+              type="text"
+              value={new Date().toLocaleDateString()}
+              disabled
+              className="border border-gray-300 rounded p-2 w-full text-center bg-gray-100"
+            />
+            <input
+              type="text"
+              placeholder="Concepto"
+              value={concepto}
+              onChange={(e) => setConcepto(e.target.value)}
+              className="border border-gray-300 rounded p-2 w-full"
+            />
+            <input
+              type="number"
+              placeholder="Importe (€)"
+              value={importe}
+              onChange={(e) => setImporte(e.target.value)}
+              className="border border-gray-300 rounded p-2 w-full"
+            />
+            <button
+              onClick={handleAddGasto}
+              className="bg-blue-600 text-white rounded py-2 active:bg-blue-700"
+            >
+              Agregar gasto
+            </button>
+          </div>
+
+          {/* Frame inferior */}
+          <div className="flex-1 overflow-y-auto bg-white">
+            <table className="w-full border-collapse text-sm">
+              <thead className="bg-gray-100 border-b border-gray-300">
+                <tr>
+                  <th className="text-left px-1 py-2">Fecha</th>
+                  <th className="text-left px-1 py-2">Concepto</th>
+                  <th className="text-right px-1 py-2">Importe (€)</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {gastos.map((g, index) => (
+                  <tr key={index} className="border-b border-gray-200">
+                    <td className="px-1 py-1">{g.fecha}</td>
+                    <td className="px-1 py-1">{g.concepto}</td>
+                    <td className="text-right px-1 py-1">{g.importe}</td>
+                    <td className="text-right px-1 py-1">
+                      <button
+                        onClick={() => handleDeleteGasto(index)}
+                        className="text-red-500"
+                      >
+                        ✕
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {gastos.length === 0 && (
+                  <tr>
+                    <td colSpan="4" className="text-center text-gray-400 py-4">
+                      No hay gastos todavía
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-    </form>
+      );
+    }
 
-    <div class="lista-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th> 
-              <th>Concepto</th> 
-              <th>€</th> 
-              <th></th> 
-            </tr>
-          </thead>
-          <tbody id="listaGastos"></tbody>
-        </table>
-
-        <p class="total">Total: <span id="total">0.00</span> €</p>
-    </div>
-    
-  </div>
-
-  <script src="app.js"></script>
+    const root = ReactDOM.createRoot(document.getElementById("app"));
+    root.render(<Metalico />);
+  </script>
 </body>
 </html>
+
