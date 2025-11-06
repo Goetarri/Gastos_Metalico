@@ -5,29 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Metálico</title>
 
-  <!-- Tailwind CSS desde CDN -->
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 m-0 p-0">
   <div id="app"></div>
 
-  <!-- React y ReactDOM desde CDN -->
+  <!-- React + Babel -->
   <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <!-- Aplicación React -->
   <script type="text/babel">
-    /**
-     * Estructura interna de cada gasto:
-     * { fechaISO: "YYYY-MM-DD", fechaDisplay: "DD/MM/YYYY", concepto: "...", importe: "12.34" }
-     *
-     * - fechaISO: formato canonical para filtrado y exportación fiable
-     * - fechaDisplay: formato en español mostrado en la tabla
-     *
-     * Al cargar datos antiguos (que sólo tuvieran 'fecha' en dd/mm/yyyy) los convertimos.
-     */
-
     function Metalico() {
       const [concepto, setConcepto] = React.useState("");
       const [importe, setImporte] = React.useState("");
@@ -40,208 +29,124 @@
       const listaRef = React.useRef(null);
       const menuRef = React.useRef(null);
 
-      // foco en concepto al abrir
-      React.useEffect(() => {
-        conceptoRef.current?.focus();
-      }, []);
-
-      // cerrar menú al clicar fuera
-      React.useEffect(() => {
-        const handleClickFuera = (e) => {
-          if (menuRef.current && !menuRef.current.contains(e.target)) {
-            setMenuAbierto(false);
-          }
-        };
-        document.addEventListener("mousedown", handleClickFuera);
-        return () => document.removeEventListener("mousedown", handleClickFuera);
-      }, []);
-
-      // -> Helper: formatea fecha ISO a dd/mm/yyyy (es-ES)
-      const formatFechaDisplay = (isoDate) => {
-        try {
-          const d = new Date(isoDate + "T00:00:00");
-          return d.toLocaleDateString("es-ES");
-        } catch {
-          return isoDate;
-        }
-      };
-
-      // -> Helper: convierto dd/mm/yyyy a YYYY-MM-DD (si falla devuelve null)
+      // 🔹 Funciones auxiliares de fecha
+      const formatFechaDisplay = (iso) => new Date(iso + "T00:00:00").toLocaleDateString("es-ES");
       const ddmmyyyyToISO = (s) => {
-        const parts = String(s).split("/");
-        if (parts.length !== 3) return null;
-        const [dd, mm, yyyy] = parts;
-        if (!/^\d{1,2}$/.test(dd) || !/^\d{1,2}$/.test(mm) || !/^\d{4}$/.test(yyyy)) return null;
-        const dd2 = dd.padStart(2, "0");
-        const mm2 = mm.padStart(2, "0");
-        return `${yyyy}-${mm2}-${dd2}`;
+        const [d, m, y] = s.split("/");
+        return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
       };
 
-      // cargar y normalizar gastos desde localStorage
+      // 🔹 Cargar datos (normaliza formato)
       React.useEffect(() => {
-        const raw = localStorage.getItem("gastosMetalico");
-        if (!raw) return;
-        try {
-          const arr = JSON.parse(raw);
-          // Normalizar cada elemento a la nueva estructura { fechaISO, fechaDisplay, concepto, importe }
-          const normalizados = arr.map((item) => {
-            // si ya tiene fechaISO (nueva estructura)
-            if (item.fechaISO) {
-              return {
-                fechaISO: item.fechaISO,
-                fechaDisplay: item.fechaDisplay || formatFechaDisplay(item.fechaISO),
-                concepto: item.concepto ?? item.concept ?? "",
-                importe: (typeof item.importe === "number") ? item.importe.toFixed(2) : String(item.importe ?? "").trim(),
-              };
-            }
-
-            // si tiene 'fecha' en dd/mm/yyyy (versión antigua)
-            if (item.fecha) {
-              const iso = ddmmyyyyToISO(item.fecha);
-              if (iso) {
-                return {
-                  fechaISO: iso,
-                  fechaDisplay: item.fecha,
-                  concepto: item.concepto ?? item.concept ?? "",
-                  importe: (typeof item.importe === "number") ? item.importe.toFixed(2) : String(item.importe ?? "").trim(),
-                };
-              }
-            }
-
-            // Fallback: intentar parsear cualquier fecha interpretable
-            // intentamos crear ISO desde Date
-            try {
-              const maybe = new Date(item.fecha || item.fechaDisplay || item);
-              if (!isNaN(maybe.getTime())) {
-                const iso = maybe.toISOString().slice(0, 10);
-                return {
-                  fechaISO: iso,
-                  fechaDisplay: formatFechaDisplay(iso),
-                  concepto: item.concepto ?? item.concept ?? "",
-                  importe: (typeof item.importe === "number") ? item.importe.toFixed(2) : String(item.importe ?? "").trim(),
-                };
-              }
-            } catch (e) {}
-
-            // si nada, crear con hoy
-            const hoyISO = new Date().toISOString().slice(0,10);
-            return {
-              fechaISO: hoyISO,
-              fechaDisplay: formatFechaDisplay(hoyISO),
-              concepto: item.concepto ?? item.concept ?? "",
-              importe: (typeof item.importe === "number") ? item.importe.toFixed(2) : String(item.importe ?? "").trim(),
-            };
-          });
-
-          setGastos(normalizados);
-        } catch (err) {
-          console.error("Error leyendo gastos desde localStorage:", err);
-        }
+        const saved = localStorage.getItem("gastosMetalico");
+        if (!saved) return;
+        const arr = JSON.parse(saved).map((g) => {
+          if (g.fechaISO) return g;
+          const iso = ddmmyyyyToISO(g.fecha);
+          return {
+            fechaISO: iso,
+            fechaDisplay: g.fecha,
+            concepto: g.concepto,
+            importe: g.importe,
+          };
+        });
+        setGastos(arr);
       }, []);
 
-      // guardar gastos (en nueva estructura)
+      // 🔹 Guardar
       React.useEffect(() => {
         localStorage.setItem("gastosMetalico", JSON.stringify(gastos));
       }, [gastos]);
 
-      // scroll al final cuando cambian gastos
-      React.useEffect(() => {
-        if (listaRef.current) {
-          // pequeña espera para que el render pinte si hace falta
-          setTimeout(() => {
-            listaRef.current.scrollTop = listaRef.current.scrollHeight;
-          }, 50);
-        }
-      }, [gastos]);
-
-      // Añadir gasto (guardamos fechaISO + fechaDisplay)
+      // 🔹 Añadir gasto y ocultar teclado
       const handleAddGasto = () => {
         if (!concepto.trim() || !importe) return;
         const now = new Date();
-        const iso = now.toISOString().slice(0,10); // YYYY-MM-DD
-        const display = now.toLocaleDateString("es-ES"); // dd/mm/yyyy
-        const nuevoGasto = {
+        const iso = now.toISOString().slice(0, 10);
+        const nuevo = {
           fechaISO: iso,
-          fechaDisplay: display,
+          fechaDisplay: formatFechaDisplay(iso),
           concepto: concepto.trim(),
           importe: parseFloat(importe).toFixed(2),
         };
-        setGastos([...gastos, nuevoGasto]); // agregar al final
+        setGastos([...gastos, nuevo]);
         setConcepto("");
         setImporte("");
-        conceptoRef.current?.focus();
+
+        // 🔸 Ocultar teclado quitando foco
+        conceptoRef.current?.blur();
+        importeRef.current?.blur();
+
+        // 🔸 Foco vuelve a concepto después de pequeño retraso
+        setTimeout(() => conceptoRef.current?.focus(), 300);
       };
 
-      // Borrar gasto por índice (índice relativo a la lista completa)
-      const handleDeleteGasto = (index) => {
-        setGastos(gastos.filter((_, i) => i !== index));
-      };
+      const handleDeleteGasto = (i) => setGastos(gastos.filter((_, idx) => idx !== i));
 
-      // Enter en importe -> añadir
-      const handleEnterImporte = (e) => {
-        if (e.key === "Enter") handleAddGasto();
-      };
-
-      // Enter en concepto -> pasar a importe
+      // 🔹 Navegación Enter
       const handleEnterConcepto = (e) => {
         if (e.key === "Enter") {
           e.preventDefault();
           importeRef.current?.focus();
         }
       };
+      const handleEnterImporte = (e) => {
+        if (e.key === "Enter") handleAddGasto();
+      };
 
-      // Filtrado por mes: usar fechaISO (YYYY-MM) para fiabilidad
+      // 🔹 Filtrado por mes
       const gastosFiltrados = React.useMemo(() => {
         if (!filtroMes) return gastos;
-        // filtroMes viene en formato "YYYY-MM"
-        return gastos.filter(g => {
-          return g.fechaISO && g.fechaISO.slice(0,7) === filtroMes;
-        });
+        return gastos.filter((g) => g.fechaISO.slice(0, 7) === filtroMes);
       }, [filtroMes, gastos]);
 
-      // total del filtrado
-      const total = gastosFiltrados
-        .reduce((acc, g) => acc + (parseFloat(g.importe || 0) || 0), 0)
-        .toFixed(2);
+      const total = gastosFiltrados.reduce((acc, g) => acc + parseFloat(g.importe), 0).toFixed(2);
 
-      // Exportar CSV (exporto fechaDisplay para que sea el formato visto)
+      // 🔹 Exportar CSV
       const exportarCSV = () => {
-        const lista = gastos; // exportar todos los registrados (no sólo filtrados)
-        if (lista.length === 0) {
-          alert("No hay datos para exportar.");
-          return;
-        }
-        const encabezados = ["Fecha", "Concepto", "Importe (€)"];
-        const filas = lista.map(g => [g.fechaDisplay, g.concepto, g.importe]);
-        const csvContent = [encabezados, ...filas]
-          .map(row => row.map(value => `"${String(value).replace(/"/g,'""')}"`).join(","))
-          .join("\n");
-
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        if (gastos.length === 0) return alert("No hay datos para exportar.");
+        const header = ["Fecha", "Concepto", "Importe (€)"];
+        const rows = gastos.map((g) => [g.fechaDisplay, g.concepto, g.importe]);
+        const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
+        const blob = new Blob([csv], { type: "text/csv" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        const hoy = new Date().toISOString().slice(0,10);
-        link.download = `gastos_metalico_${hoy}.csv`;
+        link.download = "gastos_metalico.csv";
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         setMenuAbierto(false);
       };
 
-      // Cerrar la ventana (puede no funcionar en algunos navegadores por seguridad)
+      // 🔹 Cerrar
       const cerrarPagina = () => {
         setMenuAbierto(false);
         window.close();
       };
 
+      // 🔹 Foco inicial
+      React.useEffect(() => conceptoRef.current?.focus(), []);
+
+      // 🔹 Scroll al final
+      React.useEffect(() => {
+        listaRef.current && (listaRef.current.scrollTop = listaRef.current.scrollHeight);
+      }, [gastos]);
+
+      // 🔹 Cerrar menú al clicar fuera
+      React.useEffect(() => {
+        const handler = (e) => {
+          if (menuRef.current && !menuRef.current.contains(e.target)) setMenuAbierto(false);
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+      }, []);
+
       return (
         <div className="w-screen min-h-screen bg-gray-50 flex flex-col text-sm">
-          {/* Título con menú desplegable */}
-          <div className="flex items-center justify-between bg-blue-600 text-white py-3 px-2 relative">
+          {/* Título + Menú */}
+          <div className="flex items-center justify-between bg-blue-600 text-white py-3 px-2">
             <h1 className="text-2xl font-bold">Metálico</h1>
-
-            {/* Menú desplegable */}
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setMenuAbierto(!menuAbierto)}
@@ -249,9 +154,8 @@
               >
                 ☰
               </button>
-
               {menuAbierto && (
-                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded shadow-lg text-gray-800 z-10">
+                <div className="absolute right-0 mt-2 w-40 bg-white border rounded shadow-lg text-gray-800">
                   <button
                     onClick={exportarCSV}
                     className="block w-full text-left px-4 py-2 hover:bg-gray-100"
@@ -269,7 +173,7 @@
             </div>
           </div>
 
-          {/* Frame superior: campos */}
+          {/* Campos */}
           <div className="flex flex-col p-2 gap-2 bg-white border-b border-gray-200">
             <input
               type="text"
@@ -308,7 +212,7 @@
             />
           </div>
 
-          {/* Lista */}
+          {/* Tabla */}
           <div ref={listaRef} className="flex-1 overflow-y-auto bg-white">
             <table className="w-full border-collapse text-sm">
               <thead className="bg-gray-100 border-b border-gray-300">
@@ -320,18 +224,13 @@
                 </tr>
               </thead>
               <tbody>
-                {gastosFiltrados.map((g, index) => (
-                  <tr key={index} className="border-b border-gray-200">
+                {gastosFiltrados.map((g, i) => (
+                  <tr key={i} className="border-b border-gray-200">
                     <td className="px-1 py-1">{g.fechaDisplay}</td>
                     <td className="px-1 py-1">{g.concepto}</td>
                     <td className="text-right px-1 py-1">{g.importe}</td>
                     <td className="text-right px-1 py-1">
-                      <button
-                        onClick={() => handleDeleteGasto(index)}
-                        className="text-red-500"
-                      >
-                        ✕
-                      </button>
+                      <button onClick={() => handleDeleteGasto(i)} className="text-red-500">✕</button>
                     </td>
                   </tr>
                 ))}
@@ -346,7 +245,7 @@
               {gastosFiltrados.length > 0 && (
                 <tfoot>
                   <tr className="bg-gray-100 font-bold border-t border-gray-300">
-                    <td className="px-1 py-2" colSpan="2">TOTAL</td>
+                    <td colSpan="2" className="px-1 py-2">TOTAL</td>
                     <td className="text-right px-1 py-2">{total}</td>
                     <td></td>
                   </tr>
