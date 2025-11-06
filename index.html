@@ -8,7 +8,7 @@
 </head>
 <body>
   <div class="container">
-    <h1>💸 Metálico</h1>
+    <h1>💸 Gastos Metálico</h1>
 
     <form id="gastoForm">
         <input type="text" id="concepto" placeholder="Concepto" required>
@@ -22,19 +22,23 @@
         </div>
     </form>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Fecha</th> 
-          <th>Concepto</th> 
-          <th>Euros</th> 
-          <th></th> 
-        </tr>
-      </thead>
-      <tbody id="listaGastos"></tbody>
-    </table>
+    <div class="lista-container">
+        <h2>Listado de Gastos</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th> 
+              <th>Concepto</th> 
+              <th>Euros</th> 
+              <th></th> 
+            </tr>
+          </thead>
+          <tbody id="listaGastos"></tbody>
+        </table>
 
-    <p class="total">Total: <span id="total">0.00</span> €</p>
+        <p class="total">Total: <span id="total">0.00</span> €</p>
+    </div>
+    
   </div>
 
   <script src="app.js"></script>

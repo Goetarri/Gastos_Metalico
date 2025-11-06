@@ -3,7 +3,7 @@ body {
   background-color: #f3f4f6;
   display: flex;
   justify-content: center;
-  /* CAMBIO: Se elimina el padding horizontal (el 10px) para que ocupe el 100% del ancho. */
+  /* AJUSTE FINAL: Se elimina el padding horizontal (el "marco") para que ocupe el 100% del ancho. */
   padding: 40px 0; 
 }
 
@@ -78,72 +78,15 @@ button[type="submit"]:hover {
   background-color: #15803d;
 }
 
-/* La tabla ocupará el 100% del ancho de su contenedor */
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-  /* Asegura que la tabla respete el ancho y no desborde */
-  table-layout: fixed; 
+/* --- ESTILOS PARA EL FRAME DE LA LISTA (.lista-container) --- */
+.lista-container {
+    padding-top: 20px; /* Separación visual clara del formulario */
+    border-top: 1px solid #ddd; /* Línea separadora sutil para el "frame" */
 }
 
-/* Estilos de la tabla */
-th, td {
-  padding: 12px;
-  text-align: left;
-  border-bottom: 1px solid #ddd;
-  box-sizing: border-box; 
-  word-break: break-word;
-}
-
-th {
-  background-color: #f2f2f2;
-}
-
-/* CAMBIO: OPTIMIZACIÓN DE ANCHOS DE COLUMNA EN MÓVIL (Cuatro columnas de datos: Fecha, Concepto, Importe, Acciones) */
-th:nth-child(1), td:nth-child(1) { /* Fecha (1ª Columna) */
-    width: 20%; 
-}
-th:nth-child(2), td:nth-child(2) { /* Concepto (2ª Columna) */
-    width: 40%; /* Aumentado */
-}
-th:nth-child(3), td:nth-child(3) { /* Importe (3ª Columna) */
-    width: 25%; /* Aumentado */
-}
-th:nth-child(4), td:nth-child(4) { /* Acciones (4ª Columna) */
-    width: 15%;
-    text-align: center;
-}
-td:nth-child(4) button { /* Botón de la papelera */
-    padding: 5px 8px; /* Botón de la papelera más pequeño */
-}
-
-/* --- AJUSTES AÑADIDOS para evitar saltos de línea en móvil --- */
-
-/* 1. Forzar que la 1ª columna (Fecha) no salte de línea */
-td:nth-child(1) { 
-    white-space: nowrap; 
-}
-
-/* 2. Forzar que la 3ª columna (Importe) no salte de línea */
-td:nth-child(3) { 
-    white-space: nowrap;
-    text-align: right; 
-}
-
-
-/* REGLAS para el total */
-.total {
-  /* Alinea el texto a la derecha */
-  text-align: right; 
-  /* Asegura que el párrafo tenga un margen superior para separarlo de la tabla */
-  margin-top: 15px; 
-  font-weight: bold; /* Pone el texto en negrita */
-  font-size: 1.2em; /* Aumenta ligeramente la fuente */
-}
-
-/* Estilo adicional para el valor numérico */
-#total {
-  font-size: 1.4em; /* Hace el número aún más grande */
-  color: #c52020; /* Color para destacar el total */
-}
+.lista-container h2 {
+    font-size: 1.1em;
+    margin-top: 0;
+    margin-bottom: 15px;
+    padding-bottom: 5px;
+    border-bottom: 2px solid #2563eb; /* Lí
