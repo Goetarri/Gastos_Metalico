@@ -3,17 +3,17 @@ body {
   background-color: #f3f4f6;
   display: flex;
   justify-content: center;
-  /* AJUSTE FINAL: Se elimina el padding horizontal (el "marco") para que ocupe el 100% del ancho. */
-  padding: 40px 0; 
+  /* CAMBIO: Padding vertical y horizontal a 0 */
+  padding: 0; 
 }
 
 .container {
   background: white;
-  padding: 20px;
+  /* CAMBIO: Padding a 0 */
+  padding: 0; 
   border-radius: 10px;
   box-shadow: 0 0 10px rgba(0,0,0,0.1);
   width: 100%;
-  /* CAMBIO CLAVE: Quitamos la limitación para que use todo el ancho en móviles */
   max-width: 9999px; 
 }
 
@@ -26,17 +26,20 @@ form {
   flex-direction: column;
   gap: 12px;
   margin-bottom: 20px;
+  /* Añadido un padding para que el contenido del formulario no se pegue al borde del container */
+  padding: 20px 0; 
 }
 
 /* Estilos comunes para input y select */
 input, select {
-  padding: 12px;
+  /* CAMBIO: Padding a 0 */
+  padding: 0;
   font-size: 1rem;
   border: 1px solid #ccc;
   border-radius: 6px;
   width: 100%;
   box-sizing: border-box;
-  background-color: white; /* Asegura el fondo blanco para ambos */
+  background-color: white;
 }
 
 /* Forzar el fondo de la casilla de fecha a blanco para móviles */
@@ -52,7 +55,8 @@ input[type="date"] {
 }
 
 button {
-  padding: 10px 16px;
+  /* CAMBIO: Reducido el padding, aunque no se pide a 0, se mantiene un mínimo para la estética del botón */
+  padding: 5px 8px;
   font-size: 1em;
   cursor: pointer;
   border: none;
@@ -80,24 +84,23 @@ button[type="submit"]:hover {
 
 /* --- ESTILOS PARA EL FRAME DE LA LISTA (.lista-container) --- */
 .lista-container {
-    padding-top: 20px; /* Separación visual clara del formulario */
-    border-top: 1px solid #ddd; /* Línea separadora sutil para el "frame" */
-    /* Se elimina el estilo para el h2 "Listado de Gastos" */
+    /* CAMBIO: Padding a 0, se mantiene solo el border-top como separador visual */
+    padding-top: 0; 
+    border-top: 1px solid #ddd; 
 }
-
 
 /* La tabla ocupará el 100% del ancho de su contenedor */
 table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 0; 
-  /* Asegura que la tabla respete el ancho y no desborde */
   table-layout: fixed; 
 }
 
 /* Estilos de la tabla */
 th, td {
-  padding: 12px;
+  /* CAMBIO CLAVE: Padding de celdas a 0 */
+  padding: 0;
   text-align: left;
   border-bottom: 1px solid #ddd;
   box-sizing: border-box; 
@@ -123,17 +126,15 @@ th:nth-child(4), td:nth-child(4) { /* Acciones (4ª Columna) */
     text-align: center;
 }
 td:nth-child(4) button { /* Botón de la papelera */
-    padding: 5px 8px; 
+    /* CAMBIO: Padding a 0 */
+    padding: 0; 
 }
 
 /* --- AJUSTES para evitar saltos de línea en móvil (lo solicitado) --- */
-
-/* 1. Forzar que la 1ª columna (Fecha) no salte de línea */
 td:nth-child(1) { 
     white-space: nowrap; 
 }
 
-/* 2. Forzar que la 3ª columna (Importe) no salte de línea */
 td:nth-child(3) { 
     white-space: nowrap;
     text-align: right; 
