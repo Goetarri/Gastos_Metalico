@@ -16,7 +16,7 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <!-- Tu aplicación React -->
+  <!-- Aplicación React -->
   <script type="text/babel">
 
     function Metalico() {
@@ -27,6 +27,7 @@
 
       const importeRef = React.useRef(null);
       const conceptoRef = React.useRef(null);
+      const listaRef = React.useRef(null);
       const menuRef = React.useRef(null);
 
       // 🔹 Foco automático en "Concepto" al abrir
@@ -56,7 +57,14 @@
         localStorage.setItem("gastosMetalico", JSON.stringify(gastos));
       }, [gastos]);
 
-      // Añadir gasto (🔹 al final de la lista)
+      // 🔹 Hacer scroll al final cuando se añade un gasto
+      React.useEffect(() => {
+        if (listaRef.current) {
+          listaRef.current.scrollTop = listaRef.current.scrollHeight;
+        }
+      }, [gastos]);
+
+      // Añadir gasto (al final)
       const handleAddGasto = () => {
         if (!concepto.trim() || !importe) return;
         const nuevoGasto = {
@@ -64,7 +72,7 @@
           concepto: concepto.trim(),
           importe: parseFloat(importe).toFixed(2),
         };
-        setGastos([...gastos, nuevoGasto]); // 👈 ahora se agrega al final
+        setGastos([...gastos, nuevoGasto]); // se agrega al final
         setConcepto("");
         setImporte("");
         conceptoRef.current?.focus();
@@ -187,7 +195,7 @@
           </div>
 
           {/* Frame inferior */}
-          <div className="flex-1 overflow-y-auto bg-white">
+          <div ref={listaRef} className="flex-1 overflow-y-auto bg-white">
             <table className="w-full border-collapse text-sm">
               <thead className="bg-gray-100 border-b border-gray-300">
                 <tr>
@@ -221,7 +229,6 @@
                   </tr>
                 )}
               </tbody>
-              {/* 🔹 Fila total */}
               {gastos.length > 0 && (
                 <tfoot>
                   <tr className="bg-gray-100 font-bold border-t border-gray-300">
