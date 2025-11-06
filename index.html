@@ -56,7 +56,7 @@
         localStorage.setItem("gastosMetalico", JSON.stringify(gastos));
       }, [gastos]);
 
-      // Añadir gasto
+      // Añadir gasto (🔹 al final de la lista)
       const handleAddGasto = () => {
         if (!concepto.trim() || !importe) return;
         const nuevoGasto = {
@@ -64,7 +64,7 @@
           concepto: concepto.trim(),
           importe: parseFloat(importe).toFixed(2),
         };
-        setGastos([nuevoGasto, ...gastos]);
+        setGastos([...gastos, nuevoGasto]); // 👈 ahora se agrega al final
         setConcepto("");
         setImporte("");
         conceptoRef.current?.focus();
