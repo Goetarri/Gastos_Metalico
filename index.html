@@ -23,6 +23,27 @@
       const [concepto, setConcepto] = React.useState("");
       const [importe, setImporte] = React.useState("");
       const [gastos, setGastos] = React.useState([]);
+      const [menuAbierto, setMenuAbierto] = React.useState(false);
+
+      const importeRef = React.useRef(null);
+      const conceptoRef = React.useRef(null);
+      const menuRef = React.useRef(null);
+
+      // 🔹 Foco automático en "Concepto" al abrir
+      React.useEffect(() => {
+        conceptoRef.current?.focus();
+      }, []);
+
+      // 🔹 Detectar clic fuera del menú para cerrarlo
+      React.useEffect(() => {
+        const handleClickFuera = (e) => {
+          if (menuRef.current && !menuRef.current.contains(e.target)) {
+            setMenuAbierto(false);
+          }
+        };
+        document.addEventListener("mousedown", handleClickFuera);
+        return () => document.removeEventListener("mousedown", handleClickFuera);
+      }, []);
 
       // Cargar datos guardados
       React.useEffect(() => {
@@ -35,6 +56,7 @@
         localStorage.setItem("gastosMetalico", JSON.stringify(gastos));
       }, [gastos]);
 
+      // Añadir gasto
       const handleAddGasto = () => {
         if (!concepto.trim() || !importe) return;
         const nuevoGasto = {
@@ -45,18 +67,96 @@
         setGastos([nuevoGasto, ...gastos]);
         setConcepto("");
         setImporte("");
+        conceptoRef.current?.focus();
       };
 
+      // Borrar gasto
       const handleDeleteGasto = (index) => {
         setGastos(gastos.filter((_, i) => i !== index));
       };
 
+      // Enter en campo "importe" → agregar gasto
+      const handleEnterImporte = (e) => {
+        if (e.key === "Enter") {
+          handleAddGasto();
+        }
+      };
+
+      // Enter en campo "concepto" → pasar a campo importe
+      const handleEnterConcepto = (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          importeRef.current?.focus();
+        }
+      };
+
+      // Calcular total
+      const total = gastos.reduce((acc, g) => acc + parseFloat(g.importe || 0), 0).toFixed(2);
+
+      // Exportar a CSV
+      const exportarCSV = () => {
+        if (gastos.length === 0) {
+          alert("No hay datos para exportar.");
+          return;
+        }
+
+        const encabezados = ["Fecha", "Concepto", "Importe (€)"];
+        const filas = gastos.map(g => [g.fecha, g.concepto, g.importe]);
+        const csvContent = [encabezados, ...filas]
+          .map(row => row.map(value => `"${value}"`).join(","))
+          .join("\n");
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "gastos_metalico.csv";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setMenuAbierto(false);
+      };
+
+      // Cerrar la página
+      const cerrarPagina = () => {
+        setMenuAbierto(false);
+        window.close();
+      };
+
       return (
         <div className="w-screen min-h-screen bg-gray-50 flex flex-col text-sm">
-          {/* Título */}
-          <h1 className="text-center text-2xl font-bold bg-blue-600 text-white py-3">
-            Metálico
-          </h1>
+          {/* Título con menú desplegable */}
+          <div className="flex items-center justify-between bg-blue-600 text-white py-3 px-2 relative">
+            <h1 className="text-2xl font-bold">Metálico</h1>
+
+            {/* Menú desplegable */}
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setMenuAbierto(!menuAbierto)}
+                className="bg-blue-800 hover:bg-blue-700 px-3 py-1 rounded"
+              >
+                ☰
+              </button>
+
+              {menuAbierto && (
+                <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded shadow-lg text-gray-800 z-10">
+                  <button
+                    onClick={exportarCSV}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                  >
+                    Exportar CSV
+                  </button>
+                  <button
+                    onClick={cerrarPagina}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Frame superior */}
           <div className="flex flex-col p-2 gap-2 bg-white border-b border-gray-200">
@@ -64,28 +164,26 @@
               type="text"
               value={new Date().toLocaleDateString()}
               disabled
-              className="border border-gray-300 rounded p-2 w-full text-center bg-gray-100"
+              className="border border-gray-300 rounded p-2 w-full bg-gray-100 text-left"
             />
             <input
+              ref={conceptoRef}
               type="text"
               placeholder="Concepto"
               value={concepto}
               onChange={(e) => setConcepto(e.target.value)}
+              onKeyDown={handleEnterConcepto}
               className="border border-gray-300 rounded p-2 w-full"
             />
             <input
+              ref={importeRef}
               type="number"
               placeholder="Importe (€)"
               value={importe}
               onChange={(e) => setImporte(e.target.value)}
+              onKeyDown={handleEnterImporte}
               className="border border-gray-300 rounded p-2 w-full"
             />
-            <button
-              onClick={handleAddGasto}
-              className="bg-blue-600 text-white rounded py-2 active:bg-blue-700"
-            >
-              Agregar gasto
-            </button>
           </div>
 
           {/* Frame inferior */}
@@ -123,6 +221,16 @@
                   </tr>
                 )}
               </tbody>
+              {/* 🔹 Fila total */}
+              {gastos.length > 0 && (
+                <tfoot>
+                  <tr className="bg-gray-100 font-bold border-t border-gray-300">
+                    <td className="px-1 py-2" colSpan="2">TOTAL</td>
+                    <td className="text-right px-1 py-2">{total}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </div>
