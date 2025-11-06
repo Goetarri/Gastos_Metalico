@@ -18,24 +18,34 @@
 
   <!-- Aplicación React -->
   <script type="text/babel">
+    /**
+     * Estructura interna de cada gasto:
+     * { fechaISO: "YYYY-MM-DD", fechaDisplay: "DD/MM/YYYY", concepto: "...", importe: "12.34" }
+     *
+     * - fechaISO: formato canonical para filtrado y exportación fiable
+     * - fechaDisplay: formato en español mostrado en la tabla
+     *
+     * Al cargar datos antiguos (que sólo tuvieran 'fecha' en dd/mm/yyyy) los convertimos.
+     */
 
     function Metalico() {
       const [concepto, setConcepto] = React.useState("");
       const [importe, setImporte] = React.useState("");
       const [gastos, setGastos] = React.useState([]);
       const [menuAbierto, setMenuAbierto] = React.useState(false);
+      const [filtroMes, setFiltroMes] = React.useState("");
 
       const importeRef = React.useRef(null);
       const conceptoRef = React.useRef(null);
       const listaRef = React.useRef(null);
       const menuRef = React.useRef(null);
 
-      // 🔹 Foco automático en "Concepto" al abrir
+      // foco en concepto al abrir
       React.useEffect(() => {
         conceptoRef.current?.focus();
       }, []);
 
-      // 🔹 Detectar clic fuera del menú para cerrarlo
+      // cerrar menú al clicar fuera
       React.useEffect(() => {
         const handleClickFuera = (e) => {
           if (menuRef.current && !menuRef.current.contains(e.target)) {
@@ -46,51 +56,133 @@
         return () => document.removeEventListener("mousedown", handleClickFuera);
       }, []);
 
-      // Cargar datos guardados
+      // -> Helper: formatea fecha ISO a dd/mm/yyyy (es-ES)
+      const formatFechaDisplay = (isoDate) => {
+        try {
+          const d = new Date(isoDate + "T00:00:00");
+          return d.toLocaleDateString("es-ES");
+        } catch {
+          return isoDate;
+        }
+      };
+
+      // -> Helper: convierto dd/mm/yyyy a YYYY-MM-DD (si falla devuelve null)
+      const ddmmyyyyToISO = (s) => {
+        const parts = String(s).split("/");
+        if (parts.length !== 3) return null;
+        const [dd, mm, yyyy] = parts;
+        if (!/^\d{1,2}$/.test(dd) || !/^\d{1,2}$/.test(mm) || !/^\d{4}$/.test(yyyy)) return null;
+        const dd2 = dd.padStart(2, "0");
+        const mm2 = mm.padStart(2, "0");
+        return `${yyyy}-${mm2}-${dd2}`;
+      };
+
+      // cargar y normalizar gastos desde localStorage
       React.useEffect(() => {
-        const datosGuardados = localStorage.getItem("gastosMetalico");
-        if (datosGuardados) setGastos(JSON.parse(datosGuardados));
+        const raw = localStorage.getItem("gastosMetalico");
+        if (!raw) return;
+        try {
+          const arr = JSON.parse(raw);
+          // Normalizar cada elemento a la nueva estructura { fechaISO, fechaDisplay, concepto, importe }
+          const normalizados = arr.map((item) => {
+            // si ya tiene fechaISO (nueva estructura)
+            if (item.fechaISO) {
+              return {
+                fechaISO: item.fechaISO,
+                fechaDisplay: item.fechaDisplay || formatFechaDisplay(item.fechaISO),
+                concepto: item.concepto ?? item.concept ?? "",
+                importe: (typeof item.importe === "number") ? item.importe.toFixed(2) : String(item.importe ?? "").trim(),
+              };
+            }
+
+            // si tiene 'fecha' en dd/mm/yyyy (versión antigua)
+            if (item.fecha) {
+              const iso = ddmmyyyyToISO(item.fecha);
+              if (iso) {
+                return {
+                  fechaISO: iso,
+                  fechaDisplay: item.fecha,
+                  concepto: item.concepto ?? item.concept ?? "",
+                  importe: (typeof item.importe === "number") ? item.importe.toFixed(2) : String(item.importe ?? "").trim(),
+                };
+              }
+            }
+
+            // Fallback: intentar parsear cualquier fecha interpretable
+            // intentamos crear ISO desde Date
+            try {
+              const maybe = new Date(item.fecha || item.fechaDisplay || item);
+              if (!isNaN(maybe.getTime())) {
+                const iso = maybe.toISOString().slice(0, 10);
+                return {
+                  fechaISO: iso,
+                  fechaDisplay: formatFechaDisplay(iso),
+                  concepto: item.concepto ?? item.concept ?? "",
+                  importe: (typeof item.importe === "number") ? item.importe.toFixed(2) : String(item.importe ?? "").trim(),
+                };
+              }
+            } catch (e) {}
+
+            // si nada, crear con hoy
+            const hoyISO = new Date().toISOString().slice(0,10);
+            return {
+              fechaISO: hoyISO,
+              fechaDisplay: formatFechaDisplay(hoyISO),
+              concepto: item.concepto ?? item.concept ?? "",
+              importe: (typeof item.importe === "number") ? item.importe.toFixed(2) : String(item.importe ?? "").trim(),
+            };
+          });
+
+          setGastos(normalizados);
+        } catch (err) {
+          console.error("Error leyendo gastos desde localStorage:", err);
+        }
       }, []);
 
-      // Guardar datos
+      // guardar gastos (en nueva estructura)
       React.useEffect(() => {
         localStorage.setItem("gastosMetalico", JSON.stringify(gastos));
       }, [gastos]);
 
-      // 🔹 Hacer scroll al final cuando se añade un gasto
+      // scroll al final cuando cambian gastos
       React.useEffect(() => {
         if (listaRef.current) {
-          listaRef.current.scrollTop = listaRef.current.scrollHeight;
+          // pequeña espera para que el render pinte si hace falta
+          setTimeout(() => {
+            listaRef.current.scrollTop = listaRef.current.scrollHeight;
+          }, 50);
         }
       }, [gastos]);
 
-      // Añadir gasto (al final)
+      // Añadir gasto (guardamos fechaISO + fechaDisplay)
       const handleAddGasto = () => {
         if (!concepto.trim() || !importe) return;
+        const now = new Date();
+        const iso = now.toISOString().slice(0,10); // YYYY-MM-DD
+        const display = now.toLocaleDateString("es-ES"); // dd/mm/yyyy
         const nuevoGasto = {
-          fecha: new Date().toLocaleDateString(),
+          fechaISO: iso,
+          fechaDisplay: display,
           concepto: concepto.trim(),
           importe: parseFloat(importe).toFixed(2),
         };
-        setGastos([...gastos, nuevoGasto]); // se agrega al final
+        setGastos([...gastos, nuevoGasto]); // agregar al final
         setConcepto("");
         setImporte("");
         conceptoRef.current?.focus();
       };
 
-      // Borrar gasto
+      // Borrar gasto por índice (índice relativo a la lista completa)
       const handleDeleteGasto = (index) => {
         setGastos(gastos.filter((_, i) => i !== index));
       };
 
-      // Enter en campo "importe" → agregar gasto
+      // Enter en importe -> añadir
       const handleEnterImporte = (e) => {
-        if (e.key === "Enter") {
-          handleAddGasto();
-        }
+        if (e.key === "Enter") handleAddGasto();
       };
 
-      // Enter en campo "concepto" → pasar a campo importe
+      // Enter en concepto -> pasar a importe
       const handleEnterConcepto = (e) => {
         if (e.key === "Enter") {
           e.preventDefault();
@@ -98,35 +190,46 @@
         }
       };
 
-      // Calcular total
-      const total = gastos.reduce((acc, g) => acc + parseFloat(g.importe || 0), 0).toFixed(2);
+      // Filtrado por mes: usar fechaISO (YYYY-MM) para fiabilidad
+      const gastosFiltrados = React.useMemo(() => {
+        if (!filtroMes) return gastos;
+        // filtroMes viene en formato "YYYY-MM"
+        return gastos.filter(g => {
+          return g.fechaISO && g.fechaISO.slice(0,7) === filtroMes;
+        });
+      }, [filtroMes, gastos]);
 
-      // Exportar a CSV
+      // total del filtrado
+      const total = gastosFiltrados
+        .reduce((acc, g) => acc + (parseFloat(g.importe || 0) || 0), 0)
+        .toFixed(2);
+
+      // Exportar CSV (exporto fechaDisplay para que sea el formato visto)
       const exportarCSV = () => {
-        if (gastos.length === 0) {
+        const lista = gastos; // exportar todos los registrados (no sólo filtrados)
+        if (lista.length === 0) {
           alert("No hay datos para exportar.");
           return;
         }
-
         const encabezados = ["Fecha", "Concepto", "Importe (€)"];
-        const filas = gastos.map(g => [g.fecha, g.concepto, g.importe]);
+        const filas = lista.map(g => [g.fechaDisplay, g.concepto, g.importe]);
         const csvContent = [encabezados, ...filas]
-          .map(row => row.map(value => `"${value}"`).join(","))
+          .map(row => row.map(value => `"${String(value).replace(/"/g,'""')}"`).join(","))
           .join("\n");
 
         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
-
         const link = document.createElement("a");
         link.href = url;
-        link.download = "gastos_metalico.csv";
+        const hoy = new Date().toISOString().slice(0,10);
+        link.download = `gastos_metalico_${hoy}.csv`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         setMenuAbierto(false);
       };
 
-      // Cerrar la página
+      // Cerrar la ventana (puede no funcionar en algunos navegadores por seguridad)
       const cerrarPagina = () => {
         setMenuAbierto(false);
         window.close();
@@ -148,7 +251,7 @@
               </button>
 
               {menuAbierto && (
-                <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded shadow-lg text-gray-800 z-10">
+                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded shadow-lg text-gray-800 z-10">
                   <button
                     onClick={exportarCSV}
                     className="block w-full text-left px-4 py-2 hover:bg-gray-100"
@@ -166,11 +269,11 @@
             </div>
           </div>
 
-          {/* Frame superior */}
+          {/* Frame superior: campos */}
           <div className="flex flex-col p-2 gap-2 bg-white border-b border-gray-200">
             <input
               type="text"
-              value={new Date().toLocaleDateString()}
+              value={new Date().toLocaleDateString("es-ES")}
               disabled
               className="border border-gray-300 rounded p-2 w-full bg-gray-100 text-left"
             />
@@ -194,7 +297,18 @@
             />
           </div>
 
-          {/* Frame inferior */}
+          {/* Filtro mes */}
+          <div className="bg-gray-100 p-2 flex items-center justify-between border-b border-gray-300">
+            <label className="text-gray-600 font-semibold">Filtrar por mes:</label>
+            <input
+              type="month"
+              value={filtroMes}
+              onChange={(e) => setFiltroMes(e.target.value)}
+              className="border border-gray-300 rounded p-1"
+            />
+          </div>
+
+          {/* Lista */}
           <div ref={listaRef} className="flex-1 overflow-y-auto bg-white">
             <table className="w-full border-collapse text-sm">
               <thead className="bg-gray-100 border-b border-gray-300">
@@ -206,9 +320,9 @@
                 </tr>
               </thead>
               <tbody>
-                {gastos.map((g, index) => (
+                {gastosFiltrados.map((g, index) => (
                   <tr key={index} className="border-b border-gray-200">
-                    <td className="px-1 py-1">{g.fecha}</td>
+                    <td className="px-1 py-1">{g.fechaDisplay}</td>
                     <td className="px-1 py-1">{g.concepto}</td>
                     <td className="text-right px-1 py-1">{g.importe}</td>
                     <td className="text-right px-1 py-1">
@@ -221,15 +335,15 @@
                     </td>
                   </tr>
                 ))}
-                {gastos.length === 0 && (
+                {gastosFiltrados.length === 0 && (
                   <tr>
                     <td colSpan="4" className="text-center text-gray-400 py-4">
-                      No hay gastos todavía
+                      No hay gastos para este mes
                     </td>
                   </tr>
                 )}
               </tbody>
-              {gastos.length > 0 && (
+              {gastosFiltrados.length > 0 && (
                 <tfoot>
                   <tr className="bg-gray-100 font-bold border-t border-gray-300">
                     <td className="px-1 py-2" colSpan="2">TOTAL</td>
