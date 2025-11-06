@@ -3,8 +3,8 @@ body {
   background-color: #f3f4f6;
   display: flex;
   justify-content: center;
-  /* Reducir el padding horizontal en el body puede ayudar en pantallas pequeñas */
-  padding: 40px 10px; 
+  /* CAMBIO: Se elimina el padding horizontal (el 10px) para que ocupe el 100% del ancho. */
+  padding: 40px 0; 
 }
 
 .container {
@@ -118,7 +118,7 @@ td:nth-child(4) button { /* Botón de la papelera */
     padding: 5px 8px; /* Botón de la papelera más pequeño */
 }
 
-/* --- AJUSTES AÑADIDOS para evitar saltos de línea en móvil (lo solicitado) --- */
+/* --- AJUSTES AÑADIDOS para evitar saltos de línea en móvil --- */
 
 /* 1. Forzar que la 1ª columna (Fecha) no salte de línea */
 td:nth-child(1) { 
@@ -128,8 +128,9 @@ td:nth-child(1) {
 /* 2. Forzar que la 3ª columna (Importe) no salte de línea */
 td:nth-child(3) { 
     white-space: nowrap;
-    text-align: right; /* Alineamos a la derecha para que los números se vean mejor */
+    text-align: right; 
 }
+
 
 /* REGLAS para el total */
 .total {
