@@ -7,9 +7,9 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="manifest" href="manifest.json">
   <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('service-worker.js');
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("service-worker.js");
       });
     }
   </script>
@@ -24,78 +24,94 @@
 
   <script type="text/babel">
     function Metalico() {
+      const [fecha, setFecha] = React.useState(() => new Date().toISOString().split("T")[0]);
       const [concepto, setConcepto] = React.useState("");
       const [importe, setImporte] = React.useState("");
       const [gastos, setGastos] = React.useState([]);
       const [menuAbierto, setMenuAbierto] = React.useState(false);
       const [filtroMes, setFiltroMes] = React.useState("");
       const [editIndex, setEditIndex] = React.useState(null);
-      const [mensaje, setMensaje] = React.useState(""); // ✅ nuevo estado para aviso
+      const [mensaje, setMensaje] = React.useState("");
+      const [colorMensaje, setColorMensaje] = React.useState("bg-green-600");
+      const [sortConfig, setSortConfig] = React.useState({ key: "fechaISO", direction: "desc" });
 
       const importeRef = React.useRef(null);
       const conceptoRef = React.useRef(null);
       const listaRef = React.useRef(null);
       const menuRef = React.useRef(null);
-
-      const ddmmyyyyToISO = (s) => {
-        const [d, m, y] = s.split("/");
-        return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-      };
+      const fileInputRef = React.useRef(null);
 
       React.useEffect(() => {
         const saved = localStorage.getItem("gastosMetalico");
-        if (!saved) return;
-        const arr = JSON.parse(saved).map((g) => {
-          if (g.fechaISO) return g;
-          const iso = ddmmyyyyToISO(g.fecha);
-          return {
-            fechaISO: iso,
-            fechaDisplay: g.fecha,
-            concepto: g.concepto,
-            importe: g.importe,
-          };
-        });
-        setGastos(arr);
+        if (saved) setGastos(JSON.parse(saved));
       }, []);
 
       React.useEffect(() => {
         localStorage.setItem("gastosMetalico", JSON.stringify(gastos));
       }, [gastos]);
 
-      const mostrarMensaje = (texto) => {
+      const mostrarMensaje = (texto, color) => {
         setMensaje(texto);
-        setTimeout(() => setMensaje(""), 2000); // 🔹 Se borra tras 2s
+        setColorMensaje(color);
+        setTimeout(() => setMensaje(""), 2000);
       };
 
+      const sortGastos = (arr, { key, direction }) => {
+        const sorted = [...arr].sort((a, b) => {
+          if (key === "concepto") {
+            return direction === "asc"
+              ? a.concepto.localeCompare(b.concepto)
+              : b.concepto.localeCompare(a.concepto);
+          } else if (key === "importe") {
+            return direction === "asc"
+              ? parseFloat(a.importe) - parseFloat(b.importe)
+              : parseFloat(b.importe) - parseFloat(a.importe);
+          } else {
+            return direction === "asc"
+              ? new Date(a.fechaISO) - new Date(b.fechaISO)
+              : new Date(b.fechaISO) - new Date(a.fechaISO);
+          }
+        });
+        return sorted;
+      };
+
+      const handleSort = (key) => {
+        setSortConfig((prev) => {
+          let direction = "asc";
+          if (prev.key === key && prev.direction === "asc") direction = "desc";
+          return { key, direction };
+        });
+      };
+
+      React.useEffect(() => {
+        setGastos((prev) => sortGastos(prev, sortConfig));
+      }, [sortConfig]);
+
       const handleAddOrUpdateGasto = () => {
-        if (!concepto.trim() || !importe) return;
-
-        const now = new Date();
-        const iso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-        const display = now.toLocaleDateString("es-ES");
-
+        if (!concepto.trim() || !importe || !fecha) return;
+        const [yyyy, mm, dd] = fecha.split("-");
+        const display = `${dd}/${mm}/${yyyy}`;
         const nuevoGasto = {
-          fechaISO: iso,
+          fechaISO: fecha,
           fechaDisplay: display,
           concepto: concepto.trim(),
           importe: parseFloat(importe).toFixed(2),
         };
-
+        let nuevosGastos;
         if (editIndex !== null) {
-          // 🔹 Actualizar gasto existente
           const copia = [...gastos];
           copia[editIndex] = nuevoGasto;
-          setGastos(copia);
+          nuevosGastos = sortGastos(copia, sortConfig);
           setEditIndex(null);
-          mostrarMensaje("✅ Gasto actualizado");
+          mostrarMensaje("✅ Gasto actualizado", "bg-green-600");
         } else {
-          // 🔹 Añadir nuevo gasto
-          setGastos([...gastos, nuevoGasto]);
-          mostrarMensaje("✅ Gasto añadido");
+          nuevosGastos = sortGastos([...gastos, nuevoGasto], sortConfig);
+          mostrarMensaje("✅ Gasto añadido", "bg-blue-600");
         }
-
+        setGastos(nuevosGastos);
         setConcepto("");
         setImporte("");
+        setFecha(new Date().toISOString().split("T")[0]);
         conceptoRef.current?.focus();
       };
 
@@ -105,6 +121,7 @@
         const g = gastos[i];
         setConcepto(g.concepto);
         setImporte(g.importe);
+        setFecha(g.fechaISO);
         setEditIndex(i);
         conceptoRef.current?.focus();
       };
@@ -139,11 +156,49 @@
         setMenuAbierto(false);
       };
 
+      const importarCSV = (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const text = e.target.result;
+          const rows = text.split("\n").slice(1); // quitar cabecera
+          const nuevos = [];
+          rows.forEach((r) => {
+            const [fechaStr, concepto, importeStr] = r.split(",");
+            if (fechaStr && concepto && importeStr) {
+              const partes = fechaStr.trim().split("/");
+              let isoFecha;
+              if (partes.length === 3) {
+                isoFecha = `${partes[2]}-${partes[1].padStart(2, "0")}-${partes[0].padStart(2, "0")}`;
+              } else {
+                isoFecha = new Date(fechaStr.trim()).toISOString().split("T")[0];
+              }
+              nuevos.push({
+                fechaISO: isoFecha,
+                fechaDisplay: fechaStr.trim(),
+                concepto: concepto.trim(),
+                importe: parseFloat(importeStr).toFixed(2),
+              });
+            }
+          });
+          if (nuevos.length > 0) {
+            const combinados = sortGastos([...gastos, ...nuevos], sortConfig);
+            setGastos(combinados);
+            mostrarMensaje("📂 CSV importado correctamente", "bg-green-600");
+          } else {
+            mostrarMensaje("⚠️ Archivo vacío o incorrecto", "bg-red-600");
+          }
+        };
+        reader.readAsText(file);
+        event.target.value = ""; // limpiar para permitir nueva carga
+        setMenuAbierto(false);
+      };
+
       React.useEffect(() => conceptoRef.current?.focus(), []);
       React.useEffect(() => {
         listaRef.current && (listaRef.current.scrollTop = listaRef.current.scrollHeight);
       }, [gastos]);
-
       React.useEffect(() => {
         const handler = (e) => {
           if (menuRef.current && !menuRef.current.contains(e.target)) setMenuAbierto(false);
@@ -152,9 +207,12 @@
         return () => document.removeEventListener("mousedown", handler);
       }, []);
 
+      const renderSortArrow = (key) =>
+        sortConfig.key === key ? (sortConfig.direction === "asc" ? "↑" : "↓") : "";
+
       return (
         <div className="w-screen min-h-screen bg-gray-50 flex flex-col text-sm">
-          {/* Título + Menú */}
+          {/* Título y menú */}
           <div className="flex items-center justify-between bg-blue-600 text-white py-3 px-2">
             <h1 className="text-2xl font-bold">Metálico</h1>
             <div className="relative" ref={menuRef}>
@@ -165,13 +223,26 @@
                 ☰
               </button>
               {menuAbierto && (
-                <div className="absolute right-0 mt-2 w-40 bg-white border rounded shadow-lg text-gray-800">
+                <div className="absolute right-0 mt-2 w-40 bg-white border rounded shadow-lg text-gray-800 z-10">
                   <button
                     onClick={exportarCSV}
                     className="block w-full text-left px-4 py-2 hover:bg-gray-100"
                   >
                     Exportar CSV
                   </button>
+                  <button
+                    onClick={() => fileInputRef.current.click()}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                  >
+                    Importar CSV
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv"
+                    onChange={importarCSV}
+                    className="hidden"
+                  />
                 </div>
               )}
             </div>
@@ -183,10 +254,10 @@
               <div className="text-sm text-yellow-600">✏️ Editando gasto #{editIndex + 1}</div>
             )}
             <input
-              type="text"
-              value={new Date().toLocaleDateString("es-ES")}
-              disabled
-              className="border border-gray-300 rounded p-2 w-full bg-gray-100 text-left"
+              type="date"
+              value={fecha}
+              onChange={(e) => setFecha(e.target.value)}
+              className="border border-gray-300 rounded p-2 w-full bg-white text-left"
             />
             <input
               ref={conceptoRef}
@@ -208,7 +279,7 @@
             />
           </div>
 
-          {/* Filtro mes */}
+          {/* Filtro */}
           <div className="bg-gray-100 p-2 flex items-center justify-between border-b border-gray-300">
             <label className="text-gray-600 font-semibold">Filtrar por mes:</label>
             <input
@@ -224,21 +295,40 @@
             <table className="w-full border-collapse text-sm">
               <thead className="bg-gray-100 border-b border-gray-300">
                 <tr>
-                  <th className="text-left px-1 py-2">Fecha</th>
-                  <th className="text-left px-1 py-2">Concepto</th>
-                  <th className="text-right px-1 py-2">Importe (€)</th>
+                  <th onClick={() => handleSort("fechaISO")} className="text-left px-1 py-2 cursor-pointer">
+                    Fecha {renderSortArrow("fechaISO")}
+                  </th>
+                  <th onClick={() => handleSort("concepto")} className="text-left px-1 py-2 cursor-pointer">
+                    Concepto {renderSortArrow("concepto")}
+                  </th>
+                  <th onClick={() => handleSort("importe")} className="text-right px-1 py-2 cursor-pointer">
+                    Importe (€) {renderSortArrow("importe")}
+                  </th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
                 {gastosFiltrados.map((g, i) => (
-                  <tr key={i} className={`border-b border-gray-200 ${editIndex === i ? "bg-yellow-100" : ""}`}>
+                  <tr
+                    key={i}
+                    className={`border-b border-gray-200 cursor-pointer ${
+                      editIndex === i ? "bg-yellow-100" : "hover:bg-blue-50"
+                    }`}
+                    onClick={() => handleEditGasto(i)}
+                  >
                     <td className="px-1 py-1">{g.fechaDisplay}</td>
                     <td className="px-1 py-1">{g.concepto}</td>
                     <td className="text-right px-1 py-1">{g.importe}</td>
-                    <td className="text-right px-1 py-1 space-x-1">
-                      <button onClick={() => handleEditGasto(i)} className="text-blue-500">✎</button>
-                      <button onClick={() => handleDeleteGasto(i)} className="text-red-500">✕</button>
+                    <td className="text-right px-1 py-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteGasto(i);
+                        }}
+                        className="text-red-500"
+                      >
+                        ✕
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -262,9 +352,8 @@
             </table>
           </div>
 
-          {/* ✅ Mensaje flotante */}
           {mensaje && (
-            <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded shadow-lg text-sm animate-fade-in">
+            <div className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 ${colorMensaje} text-white px-4 py-2 rounded shadow-lg text-sm animate-fade-in`}>
               {mensaje}
             </div>
           )}
@@ -281,10 +370,7 @@
       from { opacity: 0; transform: translate(-50%, 10px); }
       to { opacity: 1; transform: translate(-50%, 0); }
     }
-    .animate-fade-in {
-      animation: fade-in 0.3s ease-out;
-    }
+    .animate-fade-in { animation: fade-in 0.3s ease-out; }
   </style>
 </body>
 </html>
-
