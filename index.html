@@ -162,7 +162,7 @@
         const reader = new FileReader();
         reader.onload = (e) => {
           const text = e.target.result;
-          const rows = text.split("\n").slice(1); // quitar cabecera
+          const rows = text.split("\n").slice(1);
           const nuevos = [];
           rows.forEach((r) => {
             const [fechaStr, concepto, importeStr] = r.split(",");
@@ -191,7 +191,7 @@
           }
         };
         reader.readAsText(file);
-        event.target.value = ""; // limpiar para permitir nueva carga
+        event.target.value = "";
         setMenuAbierto(false);
       };
 
@@ -256,7 +256,10 @@
             <input
               type="date"
               value={fecha}
-              onChange={(e) => setFecha(e.target.value)}
+              onChange={(e) => {
+                setFecha(e.target.value);
+                setTimeout(() => conceptoRef.current?.focus(), 0);
+              }}
               className="border border-gray-300 rounded p-2 w-full bg-white text-left"
             />
             <input
