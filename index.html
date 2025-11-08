@@ -115,7 +115,13 @@
         conceptoRef.current?.focus();
       };
 
-      const handleDeleteGasto = (i) => setGastos(gastos.filter((_, idx) => idx !== i));
+      const handleDeleteGasto = (i) => {
+        const g = gastos[i];
+        if (confirm(`¿Eliminar el gasto "${g.concepto}" del ${g.fechaDisplay}?`)) {
+          setGastos(gastos.filter((_, idx) => idx !== i));
+          mostrarMensaje("🗑️ Gasto eliminado", "bg-red-600");
+        }
+      };
 
       const handleEditGasto = (i) => {
         const g = gastos[i];
@@ -251,7 +257,15 @@
           {/* Campos */}
           <div className="flex flex-col p-2 gap-2 bg-white border-b border-gray-200">
             {editIndex !== null && (
-              <div className="text-sm text-yellow-600">✏️ Editando gasto #{editIndex + 1}</div>
+              <div className="flex justify-between items-center text-sm text-yellow-700 bg-yellow-100 border border-yellow-300 rounded p-2">
+                <span>✏️ Editando gasto #{editIndex + 1}</span>
+                <button
+                  onClick={handleAddOrUpdateGasto}
+                  className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-3 py-1 rounded"
+                >
+                  Actualizar
+                </button>
+              </div>
             )}
             <input
               type="date"
