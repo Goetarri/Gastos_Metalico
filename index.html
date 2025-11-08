@@ -5,14 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Metálico</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="manifest" href="manifest.json" />
-  <script>
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("service-worker.js");
-      });
-    }
-  </script>
 </head>
 <body class="bg-gray-50 m-0 p-0">
   <div id="app"></div>
@@ -33,15 +25,13 @@
       const [editIndex, setEditIndex] = React.useState(null);
       const [mensaje, setMensaje] = React.useState("");
       const [colorMensaje, setColorMensaje] = React.useState("bg-green-600");
-      const [sortConfig, setSortConfig] = React.useState({ key: "fechaISO", direction: "desc" });
       const [modalVisible, setModalVisible] = React.useState(false);
       const [gastoAEliminar, setGastoAEliminar] = React.useState(null);
 
-      const importeRef = React.useRef(null);
       const conceptoRef = React.useRef(null);
-      const listaRef = React.useRef(null);
-      const menuRef = React.useRef(null);
+      const importeRef = React.useRef(null);
       const fileInputRef = React.useRef(null);
+      const menuRef = React.useRef(null);
 
       React.useEffect(() => {
         const saved = localStorage.getItem("gastosMetalico");
@@ -58,39 +48,8 @@
         setTimeout(() => setMensaje(""), 2000);
       };
 
-      const sortGastos = (arr, { key, direction }) => {
-        const sorted = [...arr].sort((a, b) => {
-          if (key === "concepto") {
-            return direction === "asc"
-              ? a.concepto.localeCompare(b.concepto)
-              : b.concepto.localeCompare(a.concepto);
-          } else if (key === "importe") {
-            return direction === "asc"
-              ? parseFloat(a.importe) - parseFloat(b.importe)
-              : parseFloat(b.importe) - parseFloat(a.importe);
-          } else {
-            return direction === "asc"
-              ? new Date(a.fechaISO) - new Date(b.fechaISO)
-              : new Date(b.fechaISO) - new Date(a.fechaISO);
-          }
-        });
-        return sorted;
-      };
-
-      const handleSort = (key) => {
-        setSortConfig((prev) => {
-          let direction = "asc";
-          if (prev.key === key && prev.direction === "asc") direction = "desc";
-          return { key, direction };
-        });
-      };
-
-      React.useEffect(() => {
-        setGastos((prev) => sortGastos(prev, sortConfig));
-      }, [sortConfig]);
-
       const handleAddOrUpdateGasto = () => {
-        if (!concepto.trim() || !importe || !fecha) return;
+        if (!concepto.trim() || !importe) return;
         const [yyyy, mm, dd] = fecha.split("-");
         const display = `${dd}/${mm}/${yyyy}`;
         const nuevoGasto = {
@@ -99,18 +58,17 @@
           concepto: concepto.trim(),
           importe: parseFloat(importe).toFixed(2),
         };
-        let nuevosGastos;
+        let nuevos;
         if (editIndex !== null) {
-          const copia = [...gastos];
-          copia[editIndex] = nuevoGasto;
-          nuevosGastos = sortGastos(copia, sortConfig);
+          nuevos = [...gastos];
+          nuevos[editIndex] = nuevoGasto;
           setEditIndex(null);
           mostrarMensaje("✅ Gasto actualizado", "bg-green-600");
         } else {
-          nuevosGastos = sortGastos([...gastos, nuevoGasto], sortConfig);
+          nuevos = [...gastos, nuevoGasto];
           mostrarMensaje("✅ Gasto añadido", "bg-blue-600");
         }
-        setGastos(nuevosGastos);
+        setGastos(nuevos);
         setConcepto("");
         setImporte("");
         setFecha(new Date().toISOString().split("T")[0]);
@@ -118,18 +76,16 @@
       };
 
       const confirmarEliminacion = (index) => {
-        setGastoAEliminar(index);
+        setGastoAEliminar(gastos[index]);
         setModalVisible(true);
       };
 
       const eliminarGasto = () => {
-        if (gastoAEliminar !== null) {
-          const g = gastos[gastoAEliminar];
-          setGastos(gastos.filter((_, idx) => idx !== gastoAEliminar));
-          mostrarMensaje("🗑️ Gasto eliminado", "bg-red-600");
-          setGastoAEliminar(null);
-          setModalVisible(false);
-        }
+        if (!gastoAEliminar) return;
+        setGastos(gastos.filter((g) => g !== gastoAEliminar));
+        mostrarMensaje("🗑️ Gasto eliminado", "bg-red-600");
+        setModalVisible(false);
+        setGastoAEliminar(null);
       };
 
       const handleEditGasto = (i) => {
@@ -148,10 +104,9 @@
         }
       };
 
-      const gastosFiltrados = React.useMemo(() => {
-        if (!filtroMes) return gastos;
-        return gastos.filter((g) => g.fechaISO.slice(0, 7) === filtroMes);
-      }, [filtroMes, gastos]);
+      const gastosFiltrados = filtroMes
+        ? gastos.filter((g) => g.fechaISO.slice(0, 7) === filtroMes)
+        : gastos;
 
       const total = gastosFiltrados.reduce((acc, g) => acc + parseFloat(g.importe), 0).toFixed(2);
 
@@ -165,9 +120,7 @@
         const link = document.createElement("a");
         link.href = url;
         link.download = "gastos_metalico.csv";
-        document.body.appendChild(link);
         link.click();
-        document.body.removeChild(link);
         setMenuAbierto(false);
       };
 
@@ -183,12 +136,7 @@
             const [fechaStr, concepto, importeStr] = r.split(",");
             if (fechaStr && concepto && importeStr) {
               const partes = fechaStr.trim().split("/");
-              let isoFecha;
-              if (partes.length === 3) {
-                isoFecha = `${partes[2]}-${partes[1].padStart(2, "0")}-${partes[0].padStart(2, "0")}`;
-              } else {
-                isoFecha = new Date(fechaStr.trim()).toISOString().split("T")[0];
-              }
+              const isoFecha = `${partes[2]}-${partes[1]}-${partes[0]}`;
               nuevos.push({
                 fechaISO: isoFecha,
                 fechaDisplay: fechaStr.trim(),
@@ -198,11 +146,8 @@
             }
           });
           if (nuevos.length > 0) {
-            const combinados = sortGastos([...gastos, ...nuevos], sortConfig);
-            setGastos(combinados);
+            setGastos([...gastos, ...nuevos]);
             mostrarMensaje("📂 CSV importado correctamente", "bg-green-600");
-          } else {
-            mostrarMensaje("⚠️ Archivo vacío o incorrecto", "bg-red-600");
           }
         };
         reader.readAsText(file);
@@ -212,9 +157,6 @@
 
       React.useEffect(() => conceptoRef.current?.focus(), []);
       React.useEffect(() => {
-        listaRef.current && (listaRef.current.scrollTop = listaRef.current.scrollHeight);
-      }, [gastos]);
-      React.useEffect(() => {
         const handler = (e) => {
           if (menuRef.current && !menuRef.current.contains(e.target)) setMenuAbierto(false);
         };
@@ -222,12 +164,9 @@
         return () => document.removeEventListener("mousedown", handler);
       }, []);
 
-      const renderSortArrow = (key) =>
-        sortConfig.key === key ? (sortConfig.direction === "asc" ? "↑" : "↓") : "";
-
       return (
-        <div className="w-screen min-h-screen bg-gray-50 flex flex-col text-sm">
-          {/* Título y menú */}
+        <div className="w-screen min-h-screen flex flex-col text-sm bg-gray-50">
+          {/* Cabecera */}
           <div className="flex items-center justify-between bg-blue-600 text-white py-3 px-2">
             <h1 className="text-2xl font-bold">Metálico</h1>
             <div className="relative" ref={menuRef}>
@@ -263,7 +202,7 @@
             </div>
           </div>
 
-          {/* Campos */}
+          {/* Formulario */}
           <div className="flex flex-col p-2 gap-2 bg-white border-b border-gray-200">
             {editIndex !== null && (
               <div className="flex justify-between items-center text-sm text-yellow-700 bg-yellow-100 border border-yellow-300 rounded p-2">
@@ -283,7 +222,7 @@
                 setFecha(e.target.value);
                 setTimeout(() => conceptoRef.current?.focus(), 0);
               }}
-              className="border border-gray-300 rounded p-2 w-full bg-white text-left"
+              className="border border-gray-300 rounded p-2 w-full text-left"
             />
             <input
               ref={conceptoRef}
@@ -316,20 +255,14 @@
             />
           </div>
 
-          {/* Tabla */}
-          <div ref={listaRef} className="flex-1 overflow-y-auto bg-white">
+          {/* Lista */}
+          <div className="flex-1 overflow-y-auto bg-white">
             <table className="w-full border-collapse text-sm">
               <thead className="bg-gray-100 border-b border-gray-300">
                 <tr>
-                  <th onClick={() => handleSort("fechaISO")} className="text-left px-1 py-2 cursor-pointer">
-                    Fecha {renderSortArrow("fechaISO")}
-                  </th>
-                  <th onClick={() => handleSort("concepto")} className="text-left px-1 py-2 cursor-pointer">
-                    Concepto {renderSortArrow("concepto")}
-                  </th>
-                  <th onClick={() => handleSort("importe")} className="text-right px-1 py-2 cursor-pointer">
-                    Importe (€) {renderSortArrow("importe")}
-                  </th>
+                  <th className="text-left px-2 py-2">Fecha</th>
+                  <th className="text-left px-2 py-2">Concepto</th>
+                  <th className="text-right px-2 py-2">Importe (€)</th>
                   <th></th>
                 </tr>
               </thead>
@@ -337,15 +270,15 @@
                 {gastosFiltrados.map((g, i) => (
                   <tr
                     key={i}
-                    className={`border-b border-gray-200 cursor-pointer ${
-                      editIndex === i ? "bg-yellow-100" : "hover:bg-blue-50"
-                    }`}
                     onClick={() => handleEditGasto(i)}
+                    className={`border-b border-gray-200 cursor-pointer hover:bg-blue-50 ${
+                      editIndex === i ? "bg-yellow-100" : ""
+                    }`}
                   >
-                    <td className="px-1 py-1">{g.fechaDisplay}</td>
-                    <td className="px-1 py-1">{g.concepto}</td>
-                    <td className="text-right px-1 py-1">{g.importe}</td>
-                    <td className="text-right px-1 py-1">
+                    <td className="px-2 py-1">{g.fechaDisplay}</td>
+                    <td className="px-2 py-1">{g.concepto}</td>
+                    <td className="text-right px-2 py-1">{g.importe}</td>
+                    <td className="text-right px-2 py-1">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -369,8 +302,8 @@
               {gastosFiltrados.length > 0 && (
                 <tfoot>
                   <tr className="bg-gray-100 font-bold border-t border-gray-300">
-                    <td colSpan="2" className="px-1 py-2">TOTAL</td>
-                    <td className="text-right px-1 py-2">{total}</td>
+                    <td colSpan="2" className="px-2 py-2">TOTAL</td>
+                    <td className="text-right px-2 py-2">{total}</td>
                     <td></td>
                   </tr>
                 </tfoot>
@@ -379,13 +312,13 @@
           </div>
 
           {/* Modal de confirmación */}
-          {modalVisible && (
+          {modalVisible && gastoAEliminar && (
             <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
               <div className="bg-white rounded-2xl shadow-lg p-6 w-80 text-center animate-fade-in">
-                <h2 className="text-lg font-semibold mb-4">¿Eliminar gasto?</h2>
-                <p className="text-gray-600 mb-6">
-                  ¿Seguro que quieres eliminar este gasto? Esta acción no se puede deshacer.
-                </p>
+                <h2 className="text-lg font-semibold mb-4 text-red-600">¿Eliminar este gasto?</h2>
+                <p className="text-gray-700 mb-2"><strong>Fecha:</strong> {gastoAEliminar.fechaDisplay}</p>
+                <p className="text-gray-700 mb-2"><strong>Concepto:</strong> {gastoAEliminar.concepto}</p>
+                <p className="text-gray-700 mb-6"><strong>Importe:</strong> {gastoAEliminar.importe} €</p>
                 <div className="flex justify-center gap-4">
                   <button
                     onClick={() => setModalVisible(false)}
@@ -404,6 +337,7 @@
             </div>
           )}
 
+          {/* Mensajes */}
           {mensaje && (
             <div className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 ${colorMensaje} text-white px-4 py-2 rounded shadow-lg text-sm animate-fade-in`}>
               {mensaje}
@@ -419,8 +353,8 @@
 
   <style>
     @keyframes fade-in {
-      from { opacity: 0; transform: translate(-50%, 10px); }
-      to { opacity: 1; transform: translate(-50%, 0); }
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     .animate-fade-in { animation: fade-in 0.3s ease-out; }
   </style>
