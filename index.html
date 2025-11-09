@@ -236,7 +236,7 @@
             <input
               ref={importeRef}
               type="number"
-              placeholder="Importe (€)"
+              placeholder="Importe"
               value={importe}
               onChange={(e) => setImporte(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAddOrUpdateGasto()}
@@ -318,7 +318,7 @@
                 <h2 className="text-lg font-semibold mb-4 text-red-600">¿Eliminar este gasto?</h2>
                 <p className="text-gray-700 mb-2"><strong>Fecha:</strong> {gastoAEliminar.fechaDisplay}</p>
                 <p className="text-gray-700 mb-2"><strong>Concepto:</strong> {gastoAEliminar.concepto}</p>
-                <p className="text-gray-700 mb-6"><strong>Importe:</strong> {gastoAEliminar.importe} €</p>
+                <p className="text-gray-700 mb-6"><strong>Importe:</strong> {gastoAEliminar.importe}</p>
                 <div className="flex justify-center gap-4">
                   <button
                     onClick={() => setModalVisible(false)}
