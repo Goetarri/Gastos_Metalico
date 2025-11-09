@@ -112,7 +112,7 @@
 
       const exportarCSV = () => {
         if (gastos.length === 0) return alert("No hay datos para exportar.");
-        const header = ["Fecha", "Concepto", "Importe (€)"];
+        const header = ["Fecha", "Concepto", "Importe"];
         const rows = gastos.map((g) => [g.fechaDisplay, g.concepto, g.importe]);
         const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
         const blob = new Blob([csv], { type: "text/csv" });
