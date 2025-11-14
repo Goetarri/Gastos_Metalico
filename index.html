@@ -309,17 +309,27 @@
                 </tr>
               </thead>
               <tbody>
-                {gastosFiltrados.map((g, i) => (
-                  <tr key={i} className={`border-b border-gray-200 ${editIndex === i ? "bg-yellow-100" : ""}`}>
-                    <td className="px-1 py-1">{g.fechaDisplay}</td>
-                    <td className="px-1 py-1">{g.concepto}</td>
-                    <td className="text-right px-1 py-1">{g.importe}</td>
-                    <td className="text-right px-1 py-1 space-x-1">
-                      <button onClick={() => handleEditGasto(i)} className="text-blue-500">✎</button>
-                      <button onClick={() => handleDeleteGasto(i)} className="text-red-500">✕</button>
-                    </td>
-                  </tr>
-                ))}
+                {gastosFiltrados.map((g, filteredIndex) => {
+                  // Encontrar el índice real en el array gastos
+                  const realIndex = gastos.findIndex(item => 
+                    item.fechaISO === g.fechaISO && item.concepto === g.concepto && item.importe === g.importe
+                  );
+                  
+                  return (
+                    <tr 
+                      key={filteredIndex} 
+                      onClick={() => handleEditGasto(realIndex)}
+                      className={`border-b border-gray-200 cursor-pointer hover:bg-gray-50 ${editIndex === realIndex ? "bg-yellow-100" : ""}`}
+                    >
+                      <td className="px-1 py-1">{g.fechaDisplay}</td>
+                      <td className="px-1 py-1">{g.concepto}</td>
+                      <td className="text-right px-1 py-1">{g.importe}</td>
+                      <td className="text-right px-1 py-1 space-x-1" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={() => handleDeleteGasto(realIndex)} className="text-red-500">✕</button>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {gastosFiltrados.length === 0 && (
                   <tr>
                     <td colSpan="4" className="text-center text-gray-400 py-4">
