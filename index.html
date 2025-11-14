@@ -204,7 +204,36 @@
         e.target.value = ""; // Permitir importar el mismo archivo de nuevo
       };
 
-      React.useEffect(() => conceptoRef.current?.focus(), []);
+      React.useEffect(() => {
+        const tryFocus = () => {
+          if (conceptoRef.current) {
+            try {
+              conceptoRef.current.focus();
+              // on some Android/WebView combos, setting selection can encourage keyboard
+              if (typeof conceptoRef.current.setSelectionRange === 'function') {
+                const len = (conceptoRef.current.value || '').length;
+                conceptoRef.current.setSelectionRange(len, len);
+              }
+            } catch (e) {
+              // ignore
+            }
+          }
+        };
+
+        // Try immediately and a few times after short delays
+        tryFocus();
+        const t1 = setTimeout(tryFocus, 300);
+        const t2 = setTimeout(tryFocus, 800);
+
+        // If browser requires a user gesture, focus on first touchend as a fallback
+        const onTouchEnd = () => { tryFocus(); window.removeEventListener('touchend', onTouchEnd); };
+        window.addEventListener('touchend', onTouchEnd, { passive: true });
+
+        return () => {
+          clearTimeout(t1); clearTimeout(t2);
+          window.removeEventListener('touchend', onTouchEnd);
+        };
+      }, []);
       React.useEffect(() => {
         listaRef.current && (listaRef.current.scrollTop = listaRef.current.scrollHeight);
       }, [gastos]);
@@ -267,7 +296,7 @@
               className="border border-gray-300 rounded p-2 w-full bg-gray-100 text-left"
             />
             <input
-              ref={conceptoRef}
+              ref={conceptoRef} autoFocus
               type="text"
               placeholder="Concepto"
               value={concepto}
