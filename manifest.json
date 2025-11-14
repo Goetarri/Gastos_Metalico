@@ -1,11 +1,13 @@
 {
   "name": "Metálico",
   "short_name": "Metálico",
-  "start_url": "./index.html",
+  "description": "Una app para llevar cuenta de los gastos en metalico.",
+  "start_url": "https://github.com/Goetarri/Gastos_Metalico/",
+  "scope": "https://github.com/Goetarri/Gastos_Metalico/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#2563eb",
   "theme_color": "#2563eb",
-  "orientation": "portrait",
   "icons": [
     {
       "src": "icon-192.png",
