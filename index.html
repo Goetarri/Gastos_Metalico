@@ -49,6 +49,7 @@
       const conceptoRef = React.useRef(null);
       const listaRef = React.useRef(null);
       const menuRef = React.useRef(null);
+      const inputImportarRef = React.useRef(null);
 
       const ddmmyyyyToISO = (s) => {
         const [d, m, y] = s.split("/");
@@ -152,6 +153,57 @@
         setMenuAbierto(false);
       };
 
+      const importarCSV = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const csv = event.target.result;
+            const lines = csv.trim().split("\n");
+            if (lines.length < 2) {
+              mostrarMensaje("❌ Archivo CSV vacío o inválido");
+              return;
+            }
+            
+            // Saltar encabezado
+            const datosImportados = lines.slice(1).map(line => {
+              const [fechaDisplay, concepto, importe] = line.split(",").map(s => s.trim());
+              if (!fechaDisplay || !concepto || !importe) return null;
+              
+              // Convertir fecha display (dd/mm/yyyy) a ISO
+              const fechaISO = ddmmyyyyToISO(fechaDisplay);
+              
+              return {
+                fechaISO,
+                fechaDisplay,
+                concepto,
+                importe: parseFloat(importe).toFixed(2),
+              };
+            }).filter(g => g !== null);
+            
+            if (datosImportados.length === 0) {
+              mostrarMensaje("❌ No se pudieron importar datos válidos");
+              return;
+            }
+            
+            // Agregar nuevos gastos (evitar duplicados por fecha + concepto)
+            const gastosActuales = new Set(gastos.map(g => `${g.fechaISO}|${g.concepto}`));
+            const nuevoGastos = datosImportados.filter(g => !gastosActuales.has(`${g.fechaISO}|${g.concepto}`));
+            
+            setGastos([...gastos, ...nuevoGastos]);
+            mostrarMensaje(`✅ Importados ${nuevoGastos.length} gastos`);
+            setMenuAbierto(false);
+          } catch (err) {
+            console.error("Error al importar CSV:", err);
+            mostrarMensaje("❌ Error al importar el archivo");
+          }
+        };
+        reader.readAsText(file);
+        e.target.value = ""; // Permitir importar el mismo archivo de nuevo
+      };
+
       React.useEffect(() => conceptoRef.current?.focus(), []);
       React.useEffect(() => {
         listaRef.current && (listaRef.current.scrollTop = listaRef.current.scrollHeight);
@@ -185,6 +237,19 @@
                   >
                     Exportar CSV
                   </button>
+                  <button
+                    onClick={() => inputImportarRef.current?.click()}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 border-t border-gray-200"
+                  >
+                    Importar CSV
+                  </button>
+                  <input
+                    ref={inputImportarRef}
+                    type="file"
+                    accept=".csv"
+                    onChange={importarCSV}
+                    style={{ display: "none" }}
+                  />
                 </div>
               )}
             </div>
