@@ -3,8 +3,29 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="description" content="Aplicación para gestionar gastos en metálico" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Metálico" />
+  
   <title>Metálico</title>
+  
+  <link rel="manifest" href="/Gastos_Metalico/manifest.json" />
+  <link rel="icon" href="/Gastos_Metalico/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/Gastos_Metalico/icons/icon-192.png" />
+  
   <script src="https://cdn.tailwindcss.com"></script>
+  
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/Gastos_Metalico/service-worker.js')
+          .then(reg => console.log('SW registered:', reg))
+          .catch(err => console.warn('SW registration failed:', err));
+      });
+    }
+  </script>
 </head>
 <body class="bg-gray-50 m-0 p-0">
   <div id="app"></div>
@@ -16,116 +37,87 @@
 
   <script type="text/babel">
     function Metalico() {
-      const [fecha, setFecha] = React.useState(() => new Date().toISOString().split("T")[0]);
       const [concepto, setConcepto] = React.useState("");
       const [importe, setImporte] = React.useState("");
       const [gastos, setGastos] = React.useState([]);
       const [menuAbierto, setMenuAbierto] = React.useState(false);
       const [filtroMes, setFiltroMes] = React.useState("");
       const [editIndex, setEditIndex] = React.useState(null);
-      const [mensaje, setMensaje] = React.useState("");
-      const [colorMensaje, setColorMensaje] = React.useState("bg-green-600");
-      const [modalVisible, setModalVisible] = React.useState(false);
-      const [gastoAEliminar, setGastoAEliminar] = React.useState(null);
-      const [sortConfig, setSortConfig] = React.useState({ key: "fechaISO", direction: "desc" });
+      const [mensaje, setMensaje] = React.useState(""); // ✅ nuevo estado para aviso
 
-      const conceptoRef = React.useRef(null);
       const importeRef = React.useRef(null);
-      const fileInputRef = React.useRef(null);
+      const conceptoRef = React.useRef(null);
+      const listaRef = React.useRef(null);
       const menuRef = React.useRef(null);
+
+      const ddmmyyyyToISO = (s) => {
+        const [d, m, y] = s.split("/");
+        return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+      };
 
       React.useEffect(() => {
         const saved = localStorage.getItem("gastosMetalico");
-        if (saved) setGastos(JSON.parse(saved));
+        if (!saved) return;
+        const arr = JSON.parse(saved).map((g) => {
+          if (g.fechaISO) return g;
+          const iso = ddmmyyyyToISO(g.fecha);
+          return {
+            fechaISO: iso,
+            fechaDisplay: g.fecha,
+            concepto: g.concepto,
+            importe: g.importe,
+          };
+        });
+        setGastos(arr);
       }, []);
 
       React.useEffect(() => {
         localStorage.setItem("gastosMetalico", JSON.stringify(gastos));
       }, [gastos]);
 
-      const mostrarMensaje = (texto, color) => {
+      const mostrarMensaje = (texto) => {
         setMensaje(texto);
-        setColorMensaje(color);
-        setTimeout(() => setMensaje(""), 2000);
+        setTimeout(() => setMensaje(""), 2000); // 🔹 Se borra tras 2s
       };
-
-      const sortGastos = (arr, { key, direction }) => {
-        const sorted = [...arr].sort((a, b) => {
-          if (key === "concepto") {
-            return direction === "asc"
-              ? a.concepto.localeCompare(b.concepto)
-              : b.concepto.localeCompare(a.concepto);
-          } else if (key === "importe") {
-            return direction === "asc"
-              ? parseFloat(a.importe) - parseFloat(b.importe)
-              : parseFloat(b.importe) - parseFloat(a.importe);
-          } else {
-            return direction === "asc"
-              ? new Date(a.fechaISO) - new Date(b.fechaISO)
-              : new Date(b.fechaISO) - new Date(a.fechaISO);
-          }
-        });
-        return sorted;
-      };
-
-      const handleSort = (key) => {
-        setSortConfig((prev) => {
-          let direction = "asc";
-          if (prev.key === key && prev.direction === "asc") direction = "desc";
-          return { key, direction };
-        });
-      };
-
-      React.useEffect(() => {
-        setGastos((prev) => sortGastos(prev, sortConfig));
-      }, [sortConfig]);
 
       const handleAddOrUpdateGasto = () => {
-        if (!concepto.trim() || !importe || !fecha) return;
-        const [yyyy, mm, dd] = fecha.split("-");
-        const display = `${dd}/${mm}/${yyyy}`;
+        if (!concepto.trim() || !importe) return;
+
+        const now = new Date();
+        const iso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+        const display = now.toLocaleDateString("es-ES");
+
         const nuevoGasto = {
-          fechaISO: fecha,
+          fechaISO: iso,
           fechaDisplay: display,
           concepto: concepto.trim(),
           importe: parseFloat(importe).toFixed(2),
         };
-        let nuevosGastos;
+
         if (editIndex !== null) {
+          // 🔹 Actualizar gasto existente
           const copia = [...gastos];
           copia[editIndex] = nuevoGasto;
-          nuevosGastos = sortGastos(copia, sortConfig);
+          setGastos(copia);
           setEditIndex(null);
-          mostrarMensaje("✅ Gasto actualizado", "bg-green-600");
+          mostrarMensaje("✅ Gasto actualizado");
         } else {
-          nuevosGastos = sortGastos([...gastos, nuevoGasto], sortConfig);
-          mostrarMensaje("✅ Gasto añadido", "bg-blue-600");
+          // 🔹 Añadir nuevo gasto
+          setGastos([...gastos, nuevoGasto]);
+          mostrarMensaje("✅ Gasto añadido");
         }
-        setGastos(nuevosGastos);
+
         setConcepto("");
         setImporte("");
-        setFecha(new Date().toISOString().split("T")[0]);
         conceptoRef.current?.focus();
       };
 
-      const confirmarEliminacion = (index) => {
-        setGastoAEliminar(gastos[index]);
-        setModalVisible(true);
-      };
-
-      const eliminarGasto = () => {
-        if (!gastoAEliminar) return;
-        setGastos(gastos.filter((g) => g !== gastoAEliminar));
-        mostrarMensaje("🗑️ Gasto eliminado", "bg-red-600");
-        setModalVisible(false);
-        setGastoAEliminar(null);
-      };
+      const handleDeleteGasto = (i) => setGastos(gastos.filter((_, idx) => idx !== i));
 
       const handleEditGasto = (i) => {
         const g = gastos[i];
         setConcepto(g.concepto);
         setImporte(g.importe);
-        setFecha(g.fechaISO);
         setEditIndex(i);
         conceptoRef.current?.focus();
       };
@@ -146,7 +138,7 @@
 
       const exportarCSV = () => {
         if (gastos.length === 0) return alert("No hay datos para exportar.");
-        const header = ["Fecha", "Concepto", "Importe"];
+        const header = ["Fecha", "Concepto", "Importe (€)"];
         const rows = gastos.map((g) => [g.fechaDisplay, g.concepto, g.importe]);
         const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
         const blob = new Blob([csv], { type: "text/csv" });
@@ -160,46 +152,11 @@
         setMenuAbierto(false);
       };
 
-      const importarCSV = (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const text = e.target.result;
-          const rows = text.split("\n").slice(1);
-          const nuevos = [];
-          rows.forEach((r) => {
-            const [fechaStr, concepto, importeStr] = r.split(",");
-            if (fechaStr && concepto && importeStr) {
-              const partes = fechaStr.trim().split("/");
-              let isoFecha;
-              if (partes.length === 3) {
-                isoFecha = `${partes[2]}-${partes[1].padStart(2, "0")}-${partes[0].padStart(2, "0")}`;
-              } else {
-                isoFecha = new Date(fechaStr.trim()).toISOString().split("T")[0];
-              }
-              nuevos.push({
-                fechaISO: isoFecha,
-                fechaDisplay: fechaStr.trim(),
-                concepto: concepto.trim(),
-                importe: parseFloat(importeStr).toFixed(2),
-              });
-            }
-          });
-          if (nuevos.length > 0) {
-            const combinados = sortGastos([...gastos, ...nuevos], sortConfig);
-            setGastos(combinados);
-            mostrarMensaje("📂 CSV importado correctamente", "bg-green-600");
-          } else {
-            mostrarMensaje("⚠️ Archivo vacío o incorrecto", "bg-red-600");
-          }
-        };
-        reader.readAsText(file);
-        event.target.value = "";
-        setMenuAbierto(false);
-      };
-
       React.useEffect(() => conceptoRef.current?.focus(), []);
+      React.useEffect(() => {
+        listaRef.current && (listaRef.current.scrollTop = listaRef.current.scrollHeight);
+      }, [gastos]);
+
       React.useEffect(() => {
         const handler = (e) => {
           if (menuRef.current && !menuRef.current.contains(e.target)) setMenuAbierto(false);
@@ -208,12 +165,9 @@
         return () => document.removeEventListener("mousedown", handler);
       }, []);
 
-      const renderSortArrow = (key) =>
-        sortConfig.key === key ? (sortConfig.direction === "asc" ? "↑" : "↓") : "";
-
       return (
         <div className="w-screen min-h-screen bg-gray-50 flex flex-col text-sm">
-          {/* Título y menú */}
+          {/* Título + Menú */}
           <div className="flex items-center justify-between bg-blue-600 text-white py-3 px-2">
             <h1 className="text-2xl font-bold">Metálico</h1>
             <div className="relative" ref={menuRef}>
@@ -224,26 +178,13 @@
                 ☰
               </button>
               {menuAbierto && (
-                <div className="absolute right-0 mt-2 w-40 bg-white border rounded shadow-lg text-gray-800 z-10">
+                <div className="absolute right-0 mt-2 w-40 bg-white border rounded shadow-lg text-gray-800">
                   <button
                     onClick={exportarCSV}
                     className="block w-full text-left px-4 py-2 hover:bg-gray-100"
                   >
                     Exportar CSV
                   </button>
-                  <button
-                    onClick={() => fileInputRef.current.click()}
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                  >
-                    Importar CSV
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".csv"
-                    onChange={importarCSV}
-                    className="hidden"
-                  />
                 </div>
               )}
             </div>
@@ -252,24 +193,13 @@
           {/* Campos */}
           <div className="flex flex-col p-2 gap-2 bg-white border-b border-gray-200">
             {editIndex !== null && (
-              <div className="flex justify-between items-center text-sm text-yellow-700 bg-yellow-100 border border-yellow-300 rounded p-2">
-                <span>✏️ Editando gasto #{editIndex + 1}</span>
-                <button
-                  onClick={handleAddOrUpdateGasto}
-                  className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-3 py-1 rounded"
-                >
-                  Actualizar
-                </button>
-              </div>
+              <div className="text-sm text-yellow-600">✏️ Editando gasto #{editIndex + 1}</div>
             )}
             <input
-              type="date"
-              value={fecha}
-              onChange={(e) => {
-                setFecha(e.target.value);
-                setTimeout(() => conceptoRef.current?.focus(), 0);
-              }}
-              className="border border-gray-300 rounded p-2 w-full text-left"
+              type="text"
+              value={new Date().toLocaleDateString("es-ES")}
+              disabled
+              className="border border-gray-300 rounded p-2 w-full bg-gray-100 text-left"
             />
             <input
               ref={conceptoRef}
@@ -283,7 +213,7 @@
             <input
               ref={importeRef}
               type="number"
-              placeholder="Importe"
+              placeholder="Importe (€)"
               value={importe}
               onChange={(e) => setImporte(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAddOrUpdateGasto()}
@@ -291,7 +221,7 @@
             />
           </div>
 
-          {/* Filtro */}
+          {/* Filtro mes */}
           <div className="bg-gray-100 p-2 flex items-center justify-between border-b border-gray-300">
             <label className="text-gray-600 font-semibold">Filtrar por mes:</label>
             <input
@@ -303,44 +233,25 @@
           </div>
 
           {/* Tabla */}
-          <div className="flex-1 overflow-y-auto bg-white">
+          <div ref={listaRef} className="flex-1 overflow-y-auto bg-white">
             <table className="w-full border-collapse text-sm">
               <thead className="bg-gray-100 border-b border-gray-300">
                 <tr>
-                  <th onClick={() => handleSort("fechaISO")} className="text-left px-1 py-2 cursor-pointer">
-                    Fecha {renderSortArrow("fechaISO")}
-                  </th>
-                  <th onClick={() => handleSort("concepto")} className="text-left px-1 py-2 cursor-pointer">
-                    Concepto {renderSortArrow("concepto")}
-                  </th>
-                  <th onClick={() => handleSort("importe")} className="text-right px-1 py-2 cursor-pointer">
-                    Importe {renderSortArrow("importe")}
-                  </th>
+                  <th className="text-left px-1 py-2">Fecha</th>
+                  <th className="text-left px-1 py-2">Concepto</th>
+                  <th className="text-right px-1 py-2">Importe (€)</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
                 {gastosFiltrados.map((g, i) => (
-                  <tr
-                    key={i}
-                    className={`border-b border-gray-200 cursor-pointer ${
-                      editIndex === i ? "bg-yellow-100" : "hover:bg-blue-50"
-                    }`}
-                    onClick={() => handleEditGasto(i)}
-                  >
+                  <tr key={i} className={`border-b border-gray-200 ${editIndex === i ? "bg-yellow-100" : ""}`}>
                     <td className="px-1 py-1">{g.fechaDisplay}</td>
                     <td className="px-1 py-1">{g.concepto}</td>
                     <td className="text-right px-1 py-1">{g.importe}</td>
-                    <td className="text-right px-1 py-1">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          confirmarEliminacion(i);
-                        }}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        ✕
-                      </button>
+                    <td className="text-right px-1 py-1 space-x-1">
+                      <button onClick={() => handleEditGasto(i)} className="text-blue-500">✎</button>
+                      <button onClick={() => handleDeleteGasto(i)} className="text-red-500">✕</button>
                     </td>
                   </tr>
                 ))}
@@ -364,35 +275,9 @@
             </table>
           </div>
 
-          {/* Modal de confirmación */}
-          {modalVisible && gastoAEliminar && (
-            <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-              <div className="bg-white rounded-2xl shadow-lg p-6 w-80 text-center animate-fade-in">
-                <h2 className="text-lg font-semibold mb-4 text-red-600">¿Eliminar este gasto?</h2>
-                <p className="text-gray-700 mb-2"><strong>Fecha:</strong> {gastoAEliminar.fechaDisplay}</p>
-                <p className="text-gray-700 mb-2"><strong>Concepto:</strong> {gastoAEliminar.concepto}</p>
-                <p className="text-gray-700 mb-6"><strong>Importe:</strong> {gastoAEliminar.importe}</p>
-                <div className="flex justify-center gap-4">
-                  <button
-                    onClick={() => setModalVisible(false)}
-                    className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold px-4 py-2 rounded"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={eliminarGasto}
-                    className="bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded"
-                  >
-                    Eliminar
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Mensajes */}
+          {/* ✅ Mensaje flotante */}
           {mensaje && (
-            <div className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 ${colorMensaje} text-white px-4 py-2 rounded shadow-lg text-sm animate-fade-in`}>
+            <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded shadow-lg text-sm animate-fade-in">
               {mensaje}
             </div>
           )}
@@ -406,10 +291,13 @@
 
   <style>
     @keyframes fade-in {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+      from { opacity: 0; transform: translate(-50%, 10px); }
+      to { opacity: 1; transform: translate(-50%, 0); }
     }
-    .animate-fade-in { animation: fade-in 0.3s ease-out; }
+    .animate-fade-in {
+      animation: fade-in 0.3s ease-out;
+    }
   </style>
 </body>
 </html>
+
