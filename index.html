@@ -40,6 +40,7 @@
       const [concepto, setConcepto] = React.useState("");
       const [importe, setImporte] = React.useState("");
       const [gastos, setGastos] = React.useState([]);
+      const [fecha, setFecha] = React.useState("");
       const [menuAbierto, setMenuAbierto] = React.useState(false);
       const [filtroMes, setFiltroMes] = React.useState("");
       const [editIndex, setEditIndex] = React.useState(null);
@@ -56,6 +57,11 @@
         return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
       };
 
+      const getTodayISO = () => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      };
+
       React.useEffect(() => {
         const saved = localStorage.getItem("gastosMetalico");
         if (!saved) return;
@@ -70,6 +76,7 @@
           };
         });
         setGastos(arr);
+        setFecha(getTodayISO());
       }, []);
 
       React.useEffect(() => {
@@ -84,14 +91,14 @@
       const handleAddOrUpdateGasto = () => {
         if (!concepto.trim() || !importe) return;
 
-        const now = new Date();
-        const iso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-        const display = now.toLocaleDateString("es-ES");
+        const fechaDate = new Date(fecha + "T00:00:00"); // Asegurar que se interpreta como fecha local
+        const iso = fecha;
+        const display = fechaDate.toLocaleDateString("es-ES");
 
         const nuevoGasto = {
           fechaISO: iso,
           fechaDisplay: display,
-          concepto: concepto.trim(),
+          concepto: concepto.trim(), // 🔹 Usar el valor del estado fecha
           importe: parseFloat(importe).toFixed(2),
         };
 
@@ -110,6 +117,7 @@
 
         setConcepto("");
         setImporte("");
+        setFecha(getTodayISO()); // 🔹 Restablecer fecha al día actual
         conceptoRef.current?.focus();
       };
 
@@ -119,6 +127,7 @@
         const g = gastos[i];
         setConcepto(g.concepto);
         setImporte(g.importe);
+        setFecha(g.fechaISO); // 🔹 Establecer la fecha del gasto a editar
         setEditIndex(i);
         conceptoRef.current?.focus();
       };
@@ -287,13 +296,21 @@
           {/* Campos */}
           <div className="flex flex-col p-2 gap-2 bg-white border-b border-gray-200">
             {editIndex !== null && (
-              <div className="text-sm text-yellow-600">✏️ Editando gasto #{editIndex + 1}</div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-yellow-600 font-semibold">✏️ Editando gasto #{editIndex + 1}</span>
+                <button
+                  onClick={handleAddOrUpdateGasto}
+                  className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
+                >
+                  Actualizar Gasto
+                </button>
+              </div>
             )}
             <input
-              type="text"
-              value={new Date().toLocaleDateString("es-ES")}
-              disabled
-              className="border border-gray-300 rounded p-2 w-full bg-gray-100 text-left"
+              type="date"
+              value={fecha}
+              onChange={(e) => setFecha(e.target.value)}
+              className="border border-gray-300 rounded p-2 w-full text-left"
             />
             <input
               ref={conceptoRef} autoFocus
@@ -313,6 +330,14 @@
               onKeyDown={(e) => e.key === "Enter" && handleAddOrUpdateGasto()}
               className="border border-gray-300 rounded p-2 w-full"
             />
+            {editIndex === null && (
+              <button
+                onClick={handleAddOrUpdateGasto}
+                className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
+              >
+                Añadir Gasto
+              </button>
+            )}
           </div>
 
           {/* Filtro mes */}
@@ -404,4 +429,3 @@
   </style>
 </body>
 </html>
-
