@@ -45,6 +45,7 @@
       const [filtroMes, setFiltroMes] = React.useState("");
       const [editIndex, setEditIndex] = React.useState(null);
       const [mensaje, setMensaje] = React.useState(""); // ✅ nuevo estado para aviso
+      const [sortConfig, setSortConfig] = React.useState({ key: null, direction: 'asc' });
 
       const importeRef = React.useRef(null);
       const conceptoRef = React.useRef(null);
@@ -139,10 +140,30 @@
         }
       };
 
+      const handleSort = (key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+          direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+      };
+
       const gastosFiltrados = React.useMemo(() => {
-        if (!filtroMes) return gastos;
-        return gastos.filter((g) => g.fechaISO.slice(0, 7) === filtroMes);
-      }, [filtroMes, gastos]);
+        let filtered = [...gastos];
+        if (filtroMes) {
+          filtered = filtered.filter((g) => g.fechaISO.slice(0, 7) === filtroMes);
+        }
+        if (sortConfig.key) {
+          filtered.sort((a, b) => {
+            let valA = sortConfig.key === 'importe' ? parseFloat(a[sortConfig.key]) : a[sortConfig.key];
+            let valB = sortConfig.key === 'importe' ? parseFloat(b[sortConfig.key]) : b[sortConfig.key];
+            if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+          });
+        }
+        return filtered;
+      }, [filtroMes, gastos, sortConfig]);
 
       const total = gastosFiltrados.reduce((acc, g) => acc + parseFloat(g.importe), 0).toFixed(2);
 
@@ -356,9 +377,15 @@
             <table className="w-full border-collapse text-sm">
               <thead className="bg-gray-100 border-b border-gray-300">
                 <tr>
-                  <th className="text-left px-1 py-2">Fecha</th>
-                  <th className="text-left px-1 py-2">Concepto</th>
-                  <th className="text-right px-1 py-2">Importe (€)</th>
+                  <th className="text-left px-1 py-2 cursor-pointer select-none" onClick={() => handleSort('fechaISO')}>
+                    Fecha {sortConfig.key === 'fechaISO' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                  </th>
+                  <th className="text-left px-1 py-2 cursor-pointer select-none" onClick={() => handleSort('concepto')}>
+                    Concepto {sortConfig.key === 'concepto' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                  </th>
+                  <th className="text-right px-1 py-2 cursor-pointer select-none" onClick={() => handleSort('importe')}>
+                    Importe (€) {sortConfig.key === 'importe' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                  </th>
                   <th></th>
                 </tr>
               </thead>

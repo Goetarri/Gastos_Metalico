@@ -1,4 +1,4 @@
-const CACHE_NAME = 'metalico-v1.1';
+const CACHE_NAME = 'metalico-v1.2';
 const OFFLINE_URL = '/Gastos_Metalico/';
 const ASSETS = [
   '/Gastos_Metalico/',
