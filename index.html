@@ -197,19 +197,20 @@
               return;
             }
             
-            // Saltar encabezado
             const datosImportados = lines.slice(1).map(line => {
-              const [fechaDisplay, concepto, importe] = line.split(",").map(s => s.trim());
-              if (!fechaDisplay || !concepto || !importe) return null;
+              const [fechaDisplay, concepto, importeRaw] = line.split(",").map(s => s.trim());
+              if (!fechaDisplay || !concepto || !importeRaw) return null;
               
-              // Convertir fecha display (dd/mm/yyyy) a ISO
               const fechaISO = ddmmyyyyToISO(fechaDisplay);
+              
+              // 🔹 Limpiamos el importe: quitamos el signo "-" y convertimos a número positivo
+              const importeLimpio = Math.abs(parseFloat(importeRaw)).toFixed(2);
               
               return {
                 fechaISO,
                 fechaDisplay,
                 concepto,
-                importe: parseFloat(importe).toFixed(2),
+                importe: importeLimpio,
               };
             }).filter(g => g !== null);
             
@@ -218,7 +219,6 @@
               return;
             }
             
-            // Agregar nuevos gastos (evitar duplicados por fecha + concepto)
             const gastosActuales = new Set(gastos.map(g => `${g.fechaISO}|${g.concepto}`));
             const nuevoGastos = datosImportados.filter(g => !gastosActuales.has(`${g.fechaISO}|${g.concepto}`));
             
@@ -231,7 +231,7 @@
           }
         };
         reader.readAsText(file);
-        e.target.value = ""; // Permitir importar el mismo archivo de nuevo
+        e.target.value = ""; 
       };
 
       React.useEffect(() => {
