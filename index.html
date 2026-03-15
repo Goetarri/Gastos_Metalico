@@ -234,6 +234,14 @@
         e.target.value = ""; 
       };
 
+      const handleClearAll = () => {
+        if (window.confirm("¿Estás seguro de que quieres borrar todos los registros? Esta acción no se puede deshacer.")) {
+          setGastos([]);
+          mostrarMensaje("🗑️ Todos los registros han sido borrados");
+          setMenuAbierto(false);
+        }
+      };
+
       React.useEffect(() => {
         const tryFocus = () => {
           if (conceptoRef.current) {
@@ -301,6 +309,12 @@
                     className="block w-full text-left px-4 py-2 hover:bg-gray-100 border-t border-gray-200"
                   >
                     Importar CSV
+                  </button>
+                  <button
+                    onClick={handleClearAll}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600 border-t border-gray-200"
+                  >
+                    Borrar todo
                   </button>
                   <input
                     ref={inputImportarRef}
