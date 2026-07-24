@@ -1,472 +1,378 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#2563eb" />
-  <meta name="description" content="Aplicación para gestionar gastos en metálico" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="Metálico" />
-  
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Metálico</title>
   
-  <link rel="manifest" href="/Gastos_Metalico/manifest.json" />
-  <link rel="icon" href="/Gastos_Metalico/icons/icon-192.png" />
-  <link rel="apple-touch-icon" href="/Gastos_Metalico/icons/icon-192.png" />
-  
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/Gastos_Metalico/service-worker.js')
-          .then(reg => console.log('SW registered:', reg))
-          .catch(err => console.warn('SW registration failed:', err));
-      });
-    }
-  </script>
-</head>
-<body class="bg-gray-50 m-0 p-0">
-  <div id="app"></div>
-
-  <!-- React + Babel -->
-  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <!-- React & ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <!-- Babel -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+  <style>
+    body { background-color: #f3f4f6; font-family: system-ui, -apple-system, sans-serif; }
+    .btn-icon { transition: transform 0.1s; }
+    .btn-icon:active { transform: scale(0.9); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
   <script type="text/babel">
-    function Metalico() {
-      const [concepto, setConcepto] = React.useState("");
-      const [importe, setImporte] = React.useState("");
-      const [gastos, setGastos] = React.useState([]);
-      const [fecha, setFecha] = React.useState("");
-      const [menuAbierto, setMenuAbierto] = React.useState(false);
-      const [filtroMes, setFiltroMes] = React.useState("");
-      const [editIndex, setEditIndex] = React.useState(null);
-      const [mensaje, setMensaje] = React.useState(""); // ✅ nuevo estado para aviso
-      const [sortConfig, setSortConfig] = React.useState({ key: null, direction: 'asc' });
+    const { useState, useEffect, useMemo, useRef } = React;
 
-      const importeRef = React.useRef(null);
-      const conceptoRef = React.useRef(null);
-      const listaRef = React.useRef(null);
-      const menuRef = React.useRef(null);
-      const inputImportarRef = React.useRef(null);
-
-      const ddmmyyyyToISO = (s) => {
-        const [d, m, y] = s.split("/");
-        return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-      };
-
-      const getTodayISO = () => {
-        const now = new Date();
-        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-      };
-
-      React.useEffect(() => {
-        const saved = localStorage.getItem("gastosMetalico");
-        if (!saved) return;
-        const arr = JSON.parse(saved).map((g) => {
-          if (g.fechaISO) return g;
-          const iso = ddmmyyyyToISO(g.fecha);
-          return {
-            fechaISO: iso,
-            fechaDisplay: g.fecha,
-            concepto: g.concepto,
-            importe: g.importe,
-          };
-        });
-        setGastos(arr);
-        setFecha(getTodayISO());
-      }, []);
-
-      React.useEffect(() => {
-        localStorage.setItem("gastosMetalico", JSON.stringify(gastos));
-      }, [gastos]);
-
-      const mostrarMensaje = (texto) => {
-        setMensaje(texto);
-        setTimeout(() => setMensaje(""), 2000); // 🔹 Se borra tras 2s
-      };
-
-      const handleAddOrUpdateGasto = () => {
-        if (!concepto.trim() || !importe) return;
-
-        const fechaDate = new Date(fecha + "T00:00:00"); // Asegurar que se interpreta como fecha local
-        const iso = fecha;
-        const display = fechaDate.toLocaleDateString("es-ES");
-
-        const nuevoGasto = {
-          fechaISO: iso,
-          fechaDisplay: display,
-          concepto: concepto.trim(), // 🔹 Usar el valor del estado fecha
-          importe: parseFloat(importe).toFixed(2),
-        };
-
-        if (editIndex !== null) {
-          // 🔹 Actualizar gasto existente
-          const copia = [...gastos];
-          copia[editIndex] = nuevoGasto;
-          setGastos(copia);
-          setEditIndex(null);
-          mostrarMensaje("✅ Gasto actualizado");
-        } else {
-          // 🔹 Añadir nuevo gasto
-          setGastos([...gastos, nuevoGasto]);
-          mostrarMensaje("✅ Gasto añadido");
-        }
-
-        setConcepto("");
-        setImporte("");
-        setFecha(getTodayISO()); // 🔹 Restablecer fecha al día actual
-        conceptoRef.current?.focus();
-      };
-
-      const handleDeleteGasto = (i) => setGastos(gastos.filter((_, idx) => idx !== i));
-
-      const handleEditGasto = (i) => {
-        const g = gastos[i];
-        setConcepto(g.concepto);
-        setImporte(g.importe);
-        setFecha(g.fechaISO); // 🔹 Establecer la fecha del gasto a editar
-        setEditIndex(i);
-        conceptoRef.current?.focus();
-      };
-
-      const handleEnterConcepto = (e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          importeRef.current?.focus();
-        }
-      };
-
-      const handleSort = (key) => {
-        let direction = 'asc';
-        if (sortConfig.key === key && sortConfig.direction === 'asc') {
-          direction = 'desc';
-        }
-        setSortConfig({ key, direction });
-      };
-
-      const gastosFiltrados = React.useMemo(() => {
-        let filtered = [...gastos];
-        if (filtroMes) {
-          filtered = filtered.filter((g) => g.fechaISO.slice(0, 7) === filtroMes);
-        }
-        if (sortConfig.key) {
-          filtered.sort((a, b) => {
-            let valA = sortConfig.key === 'importe' ? parseFloat(a[sortConfig.key]) : a[sortConfig.key];
-            let valB = sortConfig.key === 'importe' ? parseFloat(b[sortConfig.key]) : b[sortConfig.key];
-            if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
-            if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
-            return 0;
-          });
-        }
-        return filtered;
-      }, [filtroMes, gastos, sortConfig]);
-
-      const total = gastosFiltrados.reduce((acc, g) => acc + parseFloat(g.importe), 0).toFixed(2);
-
-      const exportarCSV = () => {
-        if (gastos.length === 0) return alert("No hay datos para exportar.");
-        const header = ["Fecha", "Concepto", "Importe (€)"];
-        const rows = gastos.map((g) => [g.fechaDisplay, g.concepto, `-${g.importe}`]);
-        const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
-        const blob = new Blob([csv], { type: "text/csv" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "gastos_metalico.csv";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        setMenuAbierto(false);
-      };
-
-      const importarCSV = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          try {
-            const csv = event.target.result;
-            const lines = csv.trim().split("\n");
-            if (lines.length < 2) {
-              mostrarMensaje("❌ Archivo CSV vacío o inválido");
-              return;
-            }
-            
-            const datosImportados = lines.slice(1).map(line => {
-              const [fechaDisplay, concepto, importeRaw] = line.split(",").map(s => s.trim());
-              if (!fechaDisplay || !concepto || !importeRaw) return null;
-              
-              const fechaISO = ddmmyyyyToISO(fechaDisplay);
-              
-              // 🔹 Limpiamos el importe: quitamos el signo "-" y convertimos a número positivo
-              const importeLimpio = Math.abs(parseFloat(importeRaw)).toFixed(2);
-              
-              return {
-                fechaISO,
-                fechaDisplay,
-                concepto,
-                importe: importeLimpio,
-              };
-            }).filter(g => g !== null);
-            
-            if (datosImportados.length === 0) {
-              mostrarMensaje("❌ No se pudieron importar datos válidos");
-              return;
-            }
-            
-            const gastosActuales = new Set(gastos.map(g => `${g.fechaISO}|${g.concepto}`));
-            const nuevoGastos = datosImportados.filter(g => !gastosActuales.has(`${g.fechaISO}|${g.concepto}`));
-            
-            setGastos([...gastos, ...nuevoGastos]);
-            mostrarMensaje(`✅ Importados ${nuevoGastos.length} gastos`);
-            setMenuAbierto(false);
-          } catch (err) {
-            console.error("Error al importar CSV:", err);
-            mostrarMensaje("❌ Error al importar el archivo");
-          }
-        };
-        reader.readAsText(file);
-        e.target.value = ""; 
-      };
-
-      const handleClearAll = () => {
-        if (window.confirm("¿Estás seguro de que quieres borrar todos los registros? Esta acción no se puede deshacer.")) {
-          setGastos([]);
-          mostrarMensaje("🗑️ Todos los registros han sido borrados");
-          setMenuAbierto(false);
-        }
-      };
-
-      React.useEffect(() => {
-        const tryFocus = () => {
-          if (conceptoRef.current) {
-            try {
-              conceptoRef.current.focus();
-              // on some Android/WebView combos, setting selection can encourage keyboard
-              if (typeof conceptoRef.current.setSelectionRange === 'function') {
-                const len = (conceptoRef.current.value || '').length;
-                conceptoRef.current.setSelectionRange(len, len);
-              }
-            } catch (e) {
-              // ignore
-            }
-          }
-        };
-
-        // Try immediately and a few times after short delays
-        tryFocus();
-        const t1 = setTimeout(tryFocus, 300);
-        const t2 = setTimeout(tryFocus, 800);
-
-        // If browser requires a user gesture, focus on first touchend as a fallback
-        const onTouchEnd = () => { tryFocus(); window.removeEventListener('touchend', onTouchEnd); };
-        window.addEventListener('touchend', onTouchEnd, { passive: true });
-
-        return () => {
-          clearTimeout(t1); clearTimeout(t2);
-          window.removeEventListener('touchend', onTouchEnd);
-        };
-      }, []);
-      React.useEffect(() => {
-        listaRef.current && (listaRef.current.scrollTop = listaRef.current.scrollHeight);
-      }, [gastos]);
-
-      React.useEffect(() => {
-        const handler = (e) => {
-          if (menuRef.current && !menuRef.current.contains(e.target)) setMenuAbierto(false);
-        };
-        document.addEventListener("mousedown", handler);
-        return () => document.removeEventListener("mousedown", handler);
-      }, []);
+    // ==========================================
+    // COMPONENTE 1: HEADER & MENÚ
+    // ==========================================
+    const Header = ({ gastosTotales, ingresosTotales, onExport, onImport, onBorrarTodo }) => {
+      const [menuAbierto, setMenuAbierto] = useState(false);
 
       return (
-        <div className="w-screen min-h-screen bg-gray-50 flex flex-col text-sm">
-          {/* Título + Menú */}
-          <div className="flex items-center justify-between bg-blue-600 text-white py-3 px-2">
-            <h1 className="text-2xl font-bold">Metálico</h1>
-            <div className="relative" ref={menuRef}>
-              <button
+        <header className="bg-emerald-600 text-white py-2 px-3 shadow-md sticky top-0 z-10">
+          <div className="flex justify-between items-center">
+            <h1 className="text-xl font-bold">Metálico</h1>
+            
+            <div className="flex gap-3 text-right">
+              <div className="flex flex-col">
+                <span className="text-[10px] uppercase tracking-wide opacity-80 leading-none">Gastos</span>
+                <span className="text-sm font-bold text-red-200 leading-tight">
+                  {gastosTotales.toFixed(2)} €
+                </span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] uppercase tracking-wide opacity-80 leading-none">Ingresos</span>
+                <span className="text-sm font-bold text-white leading-tight">
+                  {ingresosTotales.toFixed(2)} €
+                </span>
+              </div>
+            </div>
+
+            <div className="relative">
+              <button 
+                aria-label="Abrir menú"
+                className="text-xl px-2 py-1 focus:outline-none" 
                 onClick={() => setMenuAbierto(!menuAbierto)}
-                className="bg-blue-800 hover:bg-blue-700 px-3 py-1 rounded"
               >
                 ☰
               </button>
+              
               {menuAbierto && (
-                <div className="absolute right-0 mt-2 w-40 bg-white border rounded shadow-lg text-gray-800">
-                  <button
-                    onClick={exportarCSV}
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                  >
-                    Exportar CSV
+                <div className="absolute right-0 mt-1 w-48 bg-white text-gray-800 rounded shadow-lg overflow-hidden z-20">
+                  <button onClick={() => { onExport(); setMenuAbierto(false); }} className="w-full text-left px-3 py-2 hover:bg-gray-100 text-xs">
+                    📥 Exportar CSV
                   </button>
-                  <button
-                    onClick={() => inputImportarRef.current?.click()}
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 border-t border-gray-200"
-                  >
-                    Importar CSV
+                  <label className="w-full text-left px-3 py-2 hover:bg-gray-100 text-xs cursor-pointer block">
+                    📤 Importar CSV
+                    <input type="file" accept=".csv" className="hidden" onChange={(e) => { onImport(e); setMenuAbierto(false); }} />
+                  </label>
+                  <div className="border-t my-0.5"></div>
+                  <button onClick={() => { onBorrarTodo(); setMenuAbierto(false); }} className="w-full text-left px-3 py-2 hover:bg-red-50 text-xs text-red-600 font-medium">
+                    🗑️ Borrar todo
                   </button>
-                  <button
-                    onClick={handleClearAll}
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600 border-t border-gray-200"
-                  >
-                    Borrar todo
-                  </button>
-                  <input
-                    ref={inputImportarRef}
-                    type="file"
-                    accept=".csv"
-                    onChange={importarCSV}
-                    style={{ display: "none" }}
-                  />
                 </div>
               )}
             </div>
           </div>
+        </header>
+      );
+    };
 
-          {/* Campos */}
-          <div className="flex flex-col p-2 gap-2 bg-white border-b border-gray-200">
-            {editIndex !== null && (
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-yellow-600 font-semibold">✏️ Editando gasto #{editIndex + 1}</span>
-                <button
-                  onClick={handleAddOrUpdateGasto}
-                  className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
-                >
-                  Actualizar Gasto
-                </button>
-              </div>
-            )}
-            <input
-              type="date"
-              value={fecha}
-              onChange={(e) => setFecha(e.target.value)}
-              className="border border-gray-300 rounded p-2 w-full text-left"
-            />
-            <input
-              ref={conceptoRef} autoFocus
-              type="text"
-              placeholder="Concepto"
-              value={concepto}
+    // ==========================================
+    // COMPONENTE 2: FORMULARIO
+    // ==========================================
+    const FormularioTransaccion = ({ onGuardar, registroEditando, onCancelarEdicion }) => {
+      const [concepto, setConcepto] = useState('');
+      const [cantidad, setCantidad] = useState('');
+      const inputRef = useRef(null);
+
+      useEffect(() => {
+        if (registroEditando) {
+          setConcepto(registroEditando.concepto);
+          setCantidad(Math.abs(registroEditando.cantidad).toString());
+          inputRef.current?.focus();
+        } else {
+          setConcepto('');
+          setCantidad('');
+        }
+      }, [registroEditando]);
+
+      const procesarGuardado = (tipo) => {
+        if (!concepto.trim() || !cantidad || isNaN(cantidad)) return;
+
+        const valorNumerico = parseFloat(cantidad);
+        const cantidadFinal = tipo === 'gasto' ? -Math.abs(valorNumerico) : Math.abs(valorNumerico);
+
+        onGuardar({
+          id: registroEditando ? registroEditando.id : Date.now(),
+          fecha: registroEditando ? registroEditando.fecha : new Date().toISOString(),
+          concepto: concepto.trim(),
+          cantidad: cantidadFinal
+        });
+
+        setConcepto('');
+        setCantidad('');
+        inputRef.current?.focus();
+      };
+
+      const manejarEnvioTeclado = (e) => {
+        e.preventDefault();
+        const tipoPorDefecto = registroEditando && registroEditando.cantidad > 0 ? 'ingreso' : 'gasto';
+        procesarGuardado(tipoPorDefecto);
+      };
+
+      return (
+        <form onSubmit={manejarEnvioTeclado} className={`p-2 shadow-sm mb-1.5 rounded-b-md ${registroEditando ? 'bg-yellow-50' : 'bg-white'}`}>
+          <div className="flex flex-col sm:flex-row gap-1.5">
+            <input 
+              ref={inputRef}
+              type="text" 
+              placeholder="Concepto" 
+              value={concepto} 
               onChange={(e) => setConcepto(e.target.value)}
-              onKeyDown={handleEnterConcepto}
-              className="border border-gray-300 rounded p-2 w-full"
+              className="flex-grow px-2 py-1.5 text-sm border rounded focus:ring-1 focus:ring-emerald-500 outline-none"
+              required
             />
-            <input
-              ref={importeRef}
-              type="number"
-              placeholder="Importe (€)"
-              value={importe}
-              onChange={(e) => setImporte(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddOrUpdateGasto()}
-              className="border border-gray-300 rounded p-2 w-full"
-            />
-            {editIndex === null && (
-              <button
-                onClick={handleAddOrUpdateGasto}
-                className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
+            
+            <div className="flex gap-1.5 flex-wrap sm:flex-nowrap">
+              <input 
+                type="number" 
+                placeholder="0.00" 
+                step="0.01" 
+                min="0.01"
+                value={cantidad} 
+                onChange={(e) => setCantidad(e.target.value)}
+                className="w-20 px-2 py-1.5 text-sm border rounded focus:ring-1 focus:ring-emerald-500 outline-none"
+                required
+              />
+
+              <button 
+                type="button" 
+                onClick={() => procesarGuardado('gasto')}
+                className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs rounded font-bold shadow transition-colors flex-grow sm:flex-grow-0"
               >
-                Añadir Gasto
+                - Gasto
               </button>
-            )}
-          </div>
-
-          {/* Filtro mes */}
-          <div className="bg-gray-100 p-2 flex items-center justify-between border-b border-gray-300">
-            <label className="text-gray-600 font-semibold">Filtrar por mes:</label>
-            <input
-              type="month"
-              value={filtroMes}
-              onChange={(e) => setFiltroMes(e.target.value)}
-              className="border border-gray-300 rounded p-1"
-            />
-          </div>
-
-          {/* Tabla */}
-          <div ref={listaRef} className="flex-1 overflow-y-auto bg-white">
-            <table className="w-full border-collapse text-sm">
-              <thead className="bg-gray-100 border-b border-gray-300">
-                <tr>
-                  <th className="text-left px-1 py-2 cursor-pointer select-none" onClick={() => handleSort('fechaISO')}>
-                    Fecha {sortConfig.key === 'fechaISO' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
-                  </th>
-                  <th className="text-left px-1 py-2 cursor-pointer select-none" onClick={() => handleSort('concepto')}>
-                    Concepto {sortConfig.key === 'concepto' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
-                  </th>
-                  <th className="text-right px-1 py-2 cursor-pointer select-none" onClick={() => handleSort('importe')}>
-                    Importe (€) {sortConfig.key === 'importe' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
-                  </th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {gastosFiltrados.map((g, filteredIndex) => {
-                  // Encontrar el índice real en el array gastos
-                  const realIndex = gastos.findIndex(item => 
-                    item.fechaISO === g.fechaISO && item.concepto === g.concepto && item.importe === g.importe
-                  );
-                  
-                  return (
-                    <tr 
-                      key={filteredIndex} 
-                      onClick={() => handleEditGasto(realIndex)}
-                      className={`border-b border-gray-200 cursor-pointer hover:bg-gray-50 ${editIndex === realIndex ? "bg-yellow-100" : ""}`}
-                    >
-                      <td className="px-1 py-1">{g.fechaDisplay}</td>
-                      <td className="px-1 py-1">{g.concepto}</td>
-                      <td className="text-right px-1 py-1">{g.importe}</td>
-                      <td className="text-right px-1 py-1 space-x-1" onClick={(e) => e.stopPropagation()}>
-                        <button onClick={() => handleDeleteGasto(realIndex)} className="text-red-500">✕</button>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {gastosFiltrados.length === 0 && (
-                  <tr>
-                    <td colSpan="4" className="text-center text-gray-400 py-4">
-                      No hay gastos para este mes
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-              {gastosFiltrados.length > 0 && (
-                <tfoot>
-                  <tr className="bg-gray-100 font-bold border-t border-gray-300">
-                    <td colSpan="2" className="px-1 py-2">TOTAL</td>
-                    <td className="text-right px-1 py-2">{total}</td>
-                    <td></td>
-                  </tr>
-                </tfoot>
+              
+              <button 
+                type="button" 
+                onClick={() => procesarGuardado('ingreso')}
+                className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs rounded font-bold shadow transition-colors flex-grow sm:flex-grow-0"
+              >
+                + Ingreso
+              </button>
+              
+              {registroEditando && (
+                <button 
+                  type="button" 
+                  aria-label="Cancelar edición" 
+                  onClick={onCancelarEdicion} 
+                  className="px-2.5 py-1.5 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400 font-bold transition-colors"
+                >
+                  ✕
+                </button>
               )}
-            </table>
-          </div>
-
-          {/* ✅ Mensaje flotante */}
-          {mensaje && (
-            <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded shadow-lg text-sm animate-fade-in">
-              {mensaje}
             </div>
-          )}
+          </div>
+        </form>
+      );
+    };
+
+    // ==========================================
+    // COMPONENTE 3: TABLA DE REGISTROS
+    // ==========================================
+    const TablaRegistros = ({ registros, idEdicion, onEditar, onBorrar }) => {
+      const [orden, setOrden] = useState({ columna: 'fecha', ascendente: false });
+
+      const registrosOrdenados = useMemo(() => {
+        return [...registros].sort((a, b) => {
+          let valorA = a[orden.columna];
+          let valorB = b[orden.columna];
+          
+          if (orden.columna === 'concepto') {
+            valorA = valorA.toLowerCase();
+            valorB = valorB.toLowerCase();
+          }
+
+          if (valorA < valorB) return orden.ascendente ? -1 : 1;
+          if (valorA > valorB) return orden.ascendente ? 1 : -1;
+          return 0;
+        });
+      }, [registros, orden]);
+
+      const cambiarOrden = (columna) => {
+        setOrden(prev => ({
+          columna,
+          ascendente: prev.columna === columna ? !prev.ascendente : (columna !== 'fecha')
+        }));
+      };
+
+      if (registros.length === 0) {
+        return <p className="text-center text-gray-500 my-4 text-xs">No hay registros guardados.</p>;
+      }
+
+      return (
+        <div className="bg-white rounded-md shadow overflow-x-auto">
+          <table className="w-full text-xs text-left">
+            <thead className="bg-gray-50 text-gray-700 uppercase text-[10px]">
+              <tr>
+                <th className="px-2 py-1.5 cursor-pointer hover:bg-gray-100" onClick={() => cambiarOrden('fecha')}>
+                  Fecha {orden.columna === 'fecha' && (orden.ascendente ? '↑' : '↓')}
+                </th>
+                <th className="px-2 py-1.5 cursor-pointer hover:bg-gray-100" onClick={() => cambiarOrden('concepto')}>
+                  Concepto {orden.columna === 'concepto' && (orden.ascendente ? '↑' : '↓')}
+                </th>
+                <th className="px-2 py-1.5 text-right cursor-pointer hover:bg-gray-100" onClick={() => cambiarOrden('cantidad')}>
+                  Importe {orden.columna === 'cantidad' && (orden.ascendente ? '↑' : '↓')}
+                </th>
+                <th className="px-2 py-1.5 text-center">Acc.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {registrosOrdenados.map((reg) => (
+                <tr key={reg.id} className={`border-b hover:bg-gray-50 transition-colors ${idEdicion === reg.id ? 'bg-yellow-100' : ''}`}>
+                  <td className="px-2 py-1 whitespace-nowrap text-gray-500 text-[11px]">
+                    {new Date(reg.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                  </td>
+                  <td 
+                    onClick={() => onEditar(reg)}
+                    className="px-2 py-1 font-medium text-gray-900 truncate max-w-[140px] sm:max-w-none cursor-pointer hover:text-emerald-600 transition-colors"
+                    title="Haz clic para editar"
+                  >
+                    {reg.concepto}
+                  </td>
+                  <td className={`px-2 py-1 text-right font-bold ${reg.cantidad < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                    {reg.cantidad > 0 ? '+' : ''}{reg.cantidad.toFixed(2)} €
+                  </td>
+                  <td className="px-2 py-1 text-center">
+                    <button aria-label="Borrar" onClick={() => onBorrar(reg.id)} className="btn-icon text-red-500 hover:text-red-700 text-xs">🗑️</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       );
-    }
+    };
 
-    const root = ReactDOM.createRoot(document.getElementById("app"));
-    root.render(<Metalico />);
+    // ==========================================
+    // COMPONENTE PADRE: APP
+    // ==========================================
+    const App = () => {
+      const [registros, setRegistros] = useState(() => {
+        const guardado = localStorage.getItem('metalico_registros');
+        return guardado ? JSON.parse(guardado) : [];
+      });
+      const [registroEditando, setRegistroEditando] = useState(null);
+
+      useEffect(() => {
+        localStorage.setItem('metalico_registros', JSON.stringify(registros));
+      }, [registros]);
+
+      const guardarRegistro = (nuevoRegistro) => {
+        if (registroEditando) {
+          setRegistros(registros.map(r => r.id === nuevoRegistro.id ? nuevoRegistro : r));
+          setRegistroEditando(null);
+        } else {
+          setRegistros([...registros, nuevoRegistro]);
+        }
+      };
+
+      const borrarRegistro = (id) => {
+        if (confirm('¿Seguro que quieres borrar este registro?')) {
+          setRegistros(registros.filter(r => r.id !== id));
+          if (registroEditando?.id === id) setRegistroEditando(null);
+        }
+      };
+
+      const borrarTodo = () => {
+        if (confirm('¿Estás seguro de que quieres borrar TODOS los registros? Esta acción no se puede deshacer.')) {
+          setRegistros([]);
+          setRegistroEditando(null);
+        }
+      };
+
+      const exportarCSV = () => {
+        const cabecera = "ID,Fecha,Concepto,Cantidad\n";
+        const filas = registros.map(r => `${r.id},${r.fecha},"${r.concepto}",${r.cantidad}`).join("\n");
+        const blob = new Blob([cabecera + filas], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `metalico_export_${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+      };
+
+      const importarCSV = (e) => {
+        const archivo = e.target.files[0];
+        if (!archivo) return;
+        const lector = new FileReader();
+        lector.onload = (evento) => {
+          const texto = evento.target.result;
+          const lineas = texto.split('\n').slice(1);
+          const nuevosRegistros = lineas.filter(l => l.trim()).map(linea => {
+            const [id, fecha, conceptoRaw, cantidad] = linea.split(',');
+            return {
+              id: parseInt(id) || Date.now() + Math.random(),
+              fecha: fecha || new Date().toISOString(),
+              concepto: conceptoRaw.replace(/"/g, ''),
+              cantidad: parseFloat(cantidad) || 0
+            };
+          });
+          if (confirm(`¿Importar ${nuevosRegistros.length} registros? Esto se sumará a los actuales.`)) {
+            setRegistros([...registros, ...nuevosRegistros]);
+          }
+        };
+        lector.readAsText(archivo);
+        e.target.value = null;
+      };
+
+      const { gastosTotales, ingresosTotales } = useMemo(() => {
+        return registros.reduce(
+          (acumulador, registro) => {
+            if (registro.cantidad < 0) {
+              acumulador.gastosTotales += Math.abs(registro.cantidad);
+            } else {
+              acumulador.ingresosTotales += registro.cantidad;
+            }
+            return acumulador;
+          },
+          { gastosTotales: 0, ingresosTotales: 0 }
+        );
+      }, [registros]);
+
+      return (
+        <div className="min-h-screen pb-2">
+          <Header 
+            gastosTotales={gastosTotales}
+            ingresosTotales={ingresosTotales}
+            onExport={exportarCSV}
+            onImport={importarCSV}
+            onBorrarTodo={borrarTodo}
+          />
+          
+          <main className="px-1 mt-1">
+            <FormularioTransaccion 
+              onGuardar={guardarRegistro}
+              registroEditando={registroEditando}
+              onCancelarEdicion={() => setRegistroEditando(null)}
+            />
+            
+            <TablaRegistros 
+              registros={registros}
+              idEdicion={registroEditando?.id}
+              onEditar={setRegistroEditando}
+              onBorrar={borrarRegistro}
+            />
+          </main>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
   </script>
-
-  <style>
-    @keyframes fade-in {
-      from { opacity: 0; transform: translate(-50%, 10px); }
-      to { opacity: 1; transform: translate(-50%, 0); }
-    }
-    .animate-fade-in {
-      animation: fade-in 0.3s ease-out;
-    }
-  </style>
 </body>
 </html>
