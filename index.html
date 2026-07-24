@@ -107,9 +107,22 @@
           setCantidad('');
           setFecha(obtenerFechaLocalISO());
         }
-        setTimeout(() => {
-          inputRef.current?.focus();
-        }, 50);
+        
+        const enfocarInput = () => {
+          if (inputRef.current) {
+            inputRef.current.focus();
+            inputRef.current.click();
+          }
+        };
+
+        enfocarInput();
+        const timer1 = setTimeout(enfocarInput, 100);
+        const timer2 = setTimeout(enfocarInput, 300);
+
+        return () => {
+          clearTimeout(timer1);
+          clearTimeout(timer2);
+        };
       }, [registroEditando]);
 
       const procesarGuardado = (tipo) => {
@@ -129,8 +142,12 @@
         setConcepto('');
         setCantidad('');
         setFecha(obtenerFechaLocalISO());
+        
         setTimeout(() => {
-          inputRef.current?.focus();
+          if (inputRef.current) {
+            inputRef.current.focus();
+            inputRef.current.click();
+          }
         }, 50);
       };
 
