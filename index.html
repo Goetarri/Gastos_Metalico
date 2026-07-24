@@ -119,9 +119,21 @@
         const timer1 = setTimeout(enfocarInput, 100);
         const timer2 = setTimeout(enfocarInput, 300);
 
+        // Permitir que el primer toque en cualquier parte de la pantalla despliegue el teclado móvil de forma garantizada
+        const handleFirstTouch = () => {
+          if (inputRef.current && document.activeElement !== inputRef.current) {
+            inputRef.current.focus();
+          }
+        };
+
+        window.addEventListener('pointerdown', handleFirstTouch, { once: true });
+        window.addEventListener('touchstart', handleFirstTouch, { once: true });
+
         return () => {
           clearTimeout(timer1);
           clearTimeout(timer2);
+          window.removeEventListener('pointerdown', handleFirstTouch);
+          window.removeEventListener('touchstart', handleFirstTouch);
         };
       }, [registroEditando]);
 
